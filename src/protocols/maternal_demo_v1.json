@@ -1,0 +1,202 @@
+{
+  "id": "maternal_demo_v1",
+  "title": "Maternal danger signs & hypertension triage",
+  "version": "0.3.0-demo",
+  "effective": "2026-09-01",
+  "jurisdiction": "IN-DEMO",
+  "validation": "DEMO ENCODING — not clinically validated",
+  "who_baseline": [
+    "WHO recommendations for prevention and treatment of pre-eclampsia and eclampsia (2011)",
+    "WHO recommendations on antenatal care for a positive pregnancy experience (2016)"
+  ],
+  "applies_when": { "fact": "pregnant", "eq": true },
+  "default_level": "ROUTINE",
+  "default_action": "Continue routine antenatal care",
+  "default_capability": null,
+  "decision_facts": [
+    "pregnant", "gestational_weeks", "severe_headache", "edema", "visual_disturbance",
+    "convulsions", "vaginal_bleeding", "epigastric_pain", "sbp", "dbp"
+  ],
+  "rules": [
+    {
+      "id": "M-01",
+      "title": "Severe hypertension in pregnancy ≥20 weeks",
+      "when": { "all": [
+        { "fact": "pregnant", "eq": true },
+        { "fact": "gestational_weeks", "gte": 20 },
+        { "any": [ { "fact": "sbp", "gte": 160 }, { "fact": "dbp", "gte": 110 } ] }
+      ] },
+      "level": "EMERGENCY",
+      "action": "Emergency referral to comprehensive emergency obstetric care",
+      "required_capability": "cemonc",
+      "stop_questioning": true,
+      "source": {
+        "baseline": "WHO 2011 pre-eclampsia/eclampsia: severe hypertension = SBP ≥160 or DBP ≥110 mmHg",
+        "local": "IN-DEMO pack §4.2: route directly to FRU/CEmONC with ambulance"
+      }
+    },
+    {
+      "id": "M-02",
+      "title": "Convulsions in pregnancy",
+      "when": { "all": [ { "fact": "pregnant", "eq": true }, { "fact": "convulsions", "eq": true } ] },
+      "level": "EMERGENCY",
+      "action": "Emergency referral to comprehensive emergency obstetric care",
+      "required_capability": "cemonc",
+      "stop_questioning": true,
+      "source": {
+        "baseline": "WHO 2011 pre-eclampsia/eclampsia: eclampsia is an obstetric emergency",
+        "local": "IN-DEMO pack §4.1: call 108; route to FRU/CEmONC"
+      }
+    },
+    {
+      "id": "M-03",
+      "title": "Heavy vaginal bleeding in pregnancy",
+      "when": { "all": [ { "fact": "pregnant", "eq": true }, { "fact": "vaginal_bleeding", "eq": true } ] },
+      "level": "EMERGENCY",
+      "action": "Emergency referral to comprehensive emergency obstetric care",
+      "required_capability": "cemonc",
+      "stop_questioning": true,
+      "source": {
+        "baseline": "WHO ANC 2016 danger signs: vaginal bleeding",
+        "local": "IN-DEMO pack §4.3: route to facility with blood transfusion"
+      }
+    },
+    {
+      "id": "M-04",
+      "title": "Hypertension with severe features",
+      "when": { "all": [
+        { "fact": "pregnant", "eq": true },
+        { "fact": "gestational_weeks", "gte": 20 },
+        { "any": [ { "fact": "sbp", "gte": 140 }, { "fact": "dbp", "gte": 90 } ] },
+        { "any": [ { "fact": "severe_headache", "eq": true }, { "fact": "visual_disturbance", "eq": true }, { "fact": "epigastric_pain", "eq": true } ] }
+      ] },
+      "level": "URGENT",
+      "action": "Urgent referral (same hour) to comprehensive emergency obstetric care",
+      "required_capability": "cemonc",
+      "stop_questioning": true,
+      "source": {
+        "baseline": "WHO 2011: hypertension with severe headache / visual disturbance / epigastric pain indicates severe pre-eclampsia features",
+        "local": "IN-DEMO pack §4.4: urgent referral to FRU"
+      }
+    },
+    {
+      "id": "M-05",
+      "title": "Hypertension in pregnancy without danger signs",
+      "when": { "all": [
+        { "fact": "pregnant", "eq": true },
+        { "fact": "gestational_weeks", "gte": 20 },
+        { "any": [ { "fact": "sbp", "gte": 140 }, { "fact": "dbp", "gte": 90 } ] }
+      ] },
+      "level": "PRIORITY",
+      "action": "Same-day antenatal BP review at PHC",
+      "required_capability": "bp_review",
+      "stop_questioning": false,
+      "source": {
+        "baseline": "WHO ANC 2016: hypertension in pregnancy requires assessment",
+        "local": "IN-DEMO pack §3.2: same-day PHC review"
+      }
+    },
+    {
+      "id": "M-06",
+      "title": "Danger sign reported in pregnancy",
+      "when": { "all": [
+        { "fact": "pregnant", "eq": true },
+        { "any": [ { "fact": "severe_headache", "eq": true }, { "fact": "visual_disturbance", "eq": true } ] }
+      ] },
+      "level": "PRIORITY",
+      "action": "Same-day assessment; measure BP now",
+      "required_capability": "bp_review",
+      "stop_questioning": false,
+      "source": {
+        "baseline": "WHO ANC 2016 danger signs: severe headache, blurred vision",
+        "local": "IN-DEMO pack §3.1: ASHA to measure BP and escalate per §4"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "q_bp",
+      "facts": ["sbp", "dbp"],
+      "text": {
+        "en": "Can you measure her blood pressure now?",
+        "hi": "क्या आप अभी उनका ब्लड प्रेशर नाप सकती हैं?",
+        "bn": "আপনি কি এখন ওনার রক্তচাপ মাপতে পারবেন?"
+      },
+      "answer_type": "bp",
+      "requires_equipment": "bp_monitor",
+      "time_cost_min": 2,
+      "outcomes": [
+        { "label": "<140/90", "values": { "sbp": 118, "dbp": 76 }, "prior": 0.6 },
+        { "label": "140–159 / 90–109", "values": { "sbp": 150, "dbp": 98 }, "prior": 0.3 },
+        { "label": "≥160 or ≥110", "values": { "sbp": 166, "dbp": 108 }, "prior": 0.1 }
+      ],
+      "prior_modifiers": [
+        {
+          "when": { "fact": "hx_gestational_htn", "eq": true },
+          "priors": [0.15, 0.5, 0.35],
+          "reason": "Record: gestational hypertension; last BP 151/98 yesterday"
+        }
+      ]
+    },
+    {
+      "id": "q_convulsions",
+      "facts": ["convulsions"],
+      "text": {
+        "en": "Has she had any fits or convulsions?",
+        "hi": "क्या उन्हें कोई दौरा या झटके आए हैं?",
+        "bn": "ওনার কি খিঁচুনি হয়েছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "convulsions": true }, "prior": 0.02 },
+        { "label": "No", "values": { "convulsions": false }, "prior": 0.98 }
+      ]
+    },
+    {
+      "id": "q_bleeding",
+      "facts": ["vaginal_bleeding"],
+      "text": {
+        "en": "Is she having any vaginal bleeding?",
+        "hi": "क्या उन्हें योनि से खून आ रहा है?",
+        "bn": "ওনার কি যোনিপথে রক্তপাত হচ্ছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "vaginal_bleeding": true }, "prior": 0.03 },
+        { "label": "No", "values": { "vaginal_bleeding": false }, "prior": 0.97 }
+      ]
+    },
+    {
+      "id": "q_visual",
+      "facts": ["visual_disturbance"],
+      "text": {
+        "en": "Is her vision blurred, or is she seeing spots or flashes?",
+        "hi": "क्या उन्हें धुंधला दिख रहा है या आँखों के आगे चमक/धब्बे दिख रहे हैं?",
+        "bn": "ওনার কি চোখে ঝাপসা দেখছেন বা আলোর ঝলক দেখছেন?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "visual_disturbance": true }, "prior": 0.25 },
+        { "label": "No", "values": { "visual_disturbance": false }, "prior": 0.75 }
+      ]
+    },
+    {
+      "id": "q_epigastric",
+      "facts": ["epigastric_pain"],
+      "text": {
+        "en": "Does she have pain in the upper abdomen, below the ribs?",
+        "hi": "क्या उन्हें पेट के ऊपरी हिस्से में, पसलियों के नीचे दर्द है?",
+        "bn": "ওনার কি পেটের উপরের দিকে, পাঁজরের নিচে ব্যথা আছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "epigastric_pain": true }, "prior": 0.15 },
+        { "label": "No", "values": { "epigastric_pain": false }, "prior": 0.85 }
+      ]
+    }
+  ]
+}

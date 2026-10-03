@@ -1,0 +1,40 @@
+{
+  "_meta": { "source": "SIMULATED credentialed provider directory (synthetic clinicians)" },
+  "experts": [
+    {
+      "id": "dr-mehta", "name": "Dr. A. Mehta", "specialty": "General practice", "sub_specialty": null,
+      "facility": "phc-kheri", "region": "Kheri block", "escalation_level": 1,
+      "availability": "AVAILABLE", "typical_response_min": 10, "channel": "WhatsApp (simulated)"
+    },
+    {
+      "id": "dr-rao", "name": "Dr. S. Rao", "specialty": "Obstetrics", "sub_specialty": "High-risk pregnancy",
+      "facility": "dh-barhi", "region": "Demo District", "escalation_level": 2,
+      "availability": "ON_DUTY", "typical_response_min": 4, "channel": "Labour-room line (simulated)"
+    },
+    {
+      "id": "dr-iyer", "name": "Dr. P. Iyer", "specialty": "Pediatrics", "sub_specialty": "General pediatrics",
+      "facility": "dh-barhi", "region": "Demo District", "escalation_level": 2,
+      "availability": "AVAILABLE", "typical_response_min": 15, "channel": "WhatsApp (simulated)"
+    },
+    {
+      "id": "dr-khan", "name": "Dr. F. Khan", "specialty": "Orthopaedics", "sub_specialty": null,
+      "facility": "dh-barhi", "region": "Demo District", "escalation_level": 2,
+      "availability": "IN_SURGERY", "typical_response_min": 120, "channel": "WhatsApp (simulated)"
+    },
+    {
+      "id": "dr-sen", "name": "Dr. R. Sen", "specialty": "Clinical genetics", "sub_specialty": "Skeletal dysplasia",
+      "facility": "mch-gaya", "region": "State", "escalation_level": 3,
+      "availability": "CLINIC_FRIDAY", "typical_response_min": 2880, "channel": "Tele-consult queue (simulated)"
+    },
+    {
+      "id": "dr-das", "name": "Dr. M. Das", "specialty": "Pediatrics", "sub_specialty": "Pediatric endocrinology",
+      "facility": "mch-gaya", "region": "State", "escalation_level": 3,
+      "availability": "OFF_DUTY", "typical_response_min": 720, "channel": "WhatsApp (simulated)"
+    },
+    {
+      "id": "desk-district", "name": "District Referral Desk", "specialty": "Referral coordination", "sub_specialty": null,
+      "facility": "dh-barhi", "region": "Demo District", "escalation_level": 2,
+      "availability": "ON_DUTY", "typical_response_min": 3, "channel": "Hotline (simulated)"
+    }
+  ]
+}

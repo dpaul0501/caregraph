@@ -1,0 +1,151 @@
+{
+  "id": "pediatric_bone_demo_v1",
+  "title": "Recurrent fractures in childhood — referral pathway",
+  "version": "0.2.0-demo",
+  "effective": "2026-09-01",
+  "jurisdiction": "IN-DEMO",
+  "validation": "DEMO ENCODING — not clinically validated",
+  "who_baseline": [
+    "WHO IMCI / child health referral principles (generic baseline)",
+    "Demo adaptation: national child-health screening (RBSK-style) referral to District Early Intervention Centre"
+  ],
+  "applies_when": { "fact": "recurrent_fracture", "eq": true },
+  "default_level": "ROUTINE",
+  "default_action": "Routine follow-up; reassess after any further fracture",
+  "default_capability": null,
+  "decision_facts": [
+    "recurrent_fracture", "low_trauma", "acute_deformity", "short_stature",
+    "blue_sclera", "family_history_fractures", "hearing_impairment"
+  ],
+  "rules": [
+    {
+      "id": "P-01",
+      "title": "Fresh fracture with deformity or open wound",
+      "when": { "fact": "acute_deformity", "eq": true },
+      "level": "URGENT",
+      "action": "Same-day fracture care",
+      "required_capability": "fracture_care",
+      "stop_questioning": true,
+      "source": {
+        "baseline": "Generic emergency triage principle: acute deformity / open fracture needs same-day care",
+        "local": "IN-DEMO pack §7.1"
+      }
+    },
+    {
+      "id": "P-02",
+      "title": "Recurrent low-trauma fractures in a child",
+      "when": { "all": [ { "fact": "recurrent_fracture", "eq": true }, { "fact": "low_trauma", "eq": true } ] },
+      "level": "PRIORITY",
+      "action": "Non-urgent pediatric evaluation for bone fragility",
+      "required_capability": "pediatric_bone_eval",
+      "stop_questioning": false,
+      "source": {
+        "baseline": "Recurrent low-trauma fractures warrant evaluation for underlying bone fragility",
+        "local": "IN-DEMO pack §7.3: refer to district pediatrics"
+      }
+    },
+    {
+      "id": "P-03",
+      "title": "Recurrent low-trauma fractures with associated features",
+      "when": { "all": [
+        { "fact": "recurrent_fracture", "eq": true },
+        { "fact": "low_trauma", "eq": true },
+        { "any": [
+          { "fact": "blue_sclera", "eq": true },
+          { "fact": "family_history_fractures", "eq": true },
+          { "fact": "hearing_impairment", "eq": true }
+        ] }
+      ] },
+      "level": "PRIORITY",
+      "action": "Non-urgent referral to pediatric genetics / bone clinic",
+      "required_capability": "pediatric_genetics_eval",
+      "stop_questioning": false,
+      "requires_peer_review": true,
+      "expertise": ["Pediatrics", "Clinical genetics"],
+      "source": {
+        "baseline": "Associated features (blue sclera, family history, hearing loss) suggest a heritable bone-fragility pathway",
+        "local": "IN-DEMO pack §7.4: pathway confirmation by pediatrician before tertiary referral"
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "q_trauma",
+      "facts": ["low_trauma"],
+      "text": {
+        "en": "Did these fractures happen after a big fall or accident — or with very little force?",
+        "hi": "क्या ये हड्डियाँ किसी बड़ी चोट या दुर्घटना से टूटीं — या बहुत हल्की चोट से?",
+        "bn": "হাড়গুলো কি বড় কোনো দুর্ঘটনায় ভেঙেছে — নাকি সামান্য আঘাতেই?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Little force", "values": { "low_trauma": true }, "prior": 0.7 },
+        { "label": "Significant trauma", "values": { "low_trauma": false }, "prior": 0.3 }
+      ]
+    },
+    {
+      "id": "q_acute",
+      "facts": ["acute_deformity"],
+      "text": {
+        "en": "Is there a fresh injury now — a bent limb or an open wound?",
+        "hi": "क्या अभी कोई ताज़ा चोट है — मुड़ा हुआ हाथ/पैर या खुला घाव?",
+        "bn": "এখন কি কোনো নতুন আঘাত আছে — বাঁকা হাত/পা বা খোলা ক্ষত?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "acute_deformity": true }, "prior": 0.05 },
+        { "label": "No", "values": { "acute_deformity": false }, "prior": 0.95 }
+      ]
+    },
+    {
+      "id": "q_sclera",
+      "facts": ["blue_sclera"],
+      "text": {
+        "en": "Look at the whites of his eyes. Do they look blue or grey?",
+        "hi": "उसकी आँखों के सफ़ेद हिस्से को देखिए। क्या वह नीला या स्लेटी दिखता है?",
+        "bn": "ওর চোখের সাদা অংশটা দেখুন। সেটা কি নীলচে বা ধূসর দেখাচ্ছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "blue_sclera": true }, "prior": 0.3 },
+        { "label": "No", "values": { "blue_sclera": false }, "prior": 0.7 }
+      ],
+      "prior_modifiers": [
+        { "when": { "fact": "short_stature", "eq": true }, "priors": [0.45, 0.55], "reason": "Short stature reported with recurrent fractures" }
+      ]
+    },
+    {
+      "id": "q_family",
+      "facts": ["family_history_fractures"],
+      "text": {
+        "en": "Has anyone in the family had many broken bones?",
+        "hi": "क्या परिवार में किसी की हड्डियाँ बार-बार टूटी हैं?",
+        "bn": "পরিবারে কারও কি বারবার হাড় ভেঙেছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "family_history_fractures": true }, "prior": 0.3 },
+        { "label": "No", "values": { "family_history_fractures": false }, "prior": 0.7 }
+      ]
+    },
+    {
+      "id": "q_hearing",
+      "facts": ["hearing_impairment"],
+      "text": {
+        "en": "Does he have any problems with hearing?",
+        "hi": "क्या उसे सुनने में कोई परेशानी है?",
+        "bn": "ওর কি শুনতে কোনো অসুবিধা হয়?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        { "label": "Yes", "values": { "hearing_impairment": true }, "prior": 0.2 },
+        { "label": "No", "values": { "hearing_impairment": false }, "prior": 0.8 }
+      ]
+    }
+  ]
+}

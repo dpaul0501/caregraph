@@ -1,0 +1,115 @@
+{
+  "code": "IN-DEMO",
+  "name": "India — Demo Configuration",
+  "district": "Demo District (fictional)",
+  "version": "0.3.0-demo",
+  "effective": "2026-09-01",
+  "approval_status": "SYNTHETIC — not approved by any Ministry of Health. Structure modelled on a public national referral hierarchy for demonstration only.",
+  "who_baseline": "WHO recommendations (pre-eclampsia/eclampsia 2011; antenatal care 2016) · WHO SMART Guidelines DAK approach",
+  "local_adaptation": "Demo adaptation: referral routing to First Referral Units (FRU) / CEmONC; ASHA kit includes digital BP monitor",
+  "clinical_protocols": {
+    "maternal": "maternal_demo_v1",
+    "pediatric": "pediatric_bone_demo_v1"
+  },
+  "referral_levels": [
+    "Community (ASHA)",
+    "Sub-centre",
+    "PHC",
+    "CHC / FRU",
+    "District Hospital",
+    "Medical College"
+  ],
+  "capabilities": {
+    "cemonc": {
+      "label": "Comprehensive emergency obstetric care (CEmONC)",
+      "services": [
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4"
+      ],
+      "staff_on_duty": [
+        "obstetrician",
+        "anaesthetist"
+      ],
+      "hours": "24x7"
+    },
+    "bp_review": {
+      "label": "Same-day antenatal BP review",
+      "services": [
+        "anc"
+      ],
+      "staff_on_duty": [
+        "medical_officer"
+      ],
+      "hours": "any"
+    },
+    "pediatric_bone_eval": {
+      "label": "Pediatric evaluation for bone fragility",
+      "services": [
+        "pediatrics",
+        "xray"
+      ],
+      "staff_on_duty": [],
+      "hours": "any"
+    },
+    "pediatric_genetics_eval": {
+      "label": "Pediatric genetics / bone clinic",
+      "services": [
+        "genetics_clinic",
+        "pediatrics",
+        "xray"
+      ],
+      "staff_on_duty": [],
+      "hours": "any"
+    },
+    "fracture_care": {
+      "label": "Same-day fracture care",
+      "services": [
+        "xray",
+        "orthopaedics"
+      ],
+      "staff_on_duty": [
+        "orthopaedic_surgeon"
+      ],
+      "hours": "24x7"
+    }
+  },
+  "emergency": {
+    "ambulance_service": "108 Emergency Response (SIMULATED)",
+    "authorization_required": true,
+    "authorization_roles": [
+      "ASHA (initiator)",
+      "PHC Medical Officer or 108 call-centre (confirm)"
+    ]
+  },
+  "escalation_policy": {
+    "EMERGENCY": {
+      "facility_response_min": 5,
+      "escalate_to": "District referral desk"
+    },
+    "URGENT": {
+      "facility_response_min": 15,
+      "escalate_to": "Block medical officer"
+    },
+    "PRIORITY": {
+      "facility_response_min": 120,
+      "escalate_to": "Senior local clinician"
+    }
+  },
+  "languages": [
+    "English",
+    "Hindi",
+    "Bengali"
+  ],
+  "privacy": "Minimum necessary data in peer messages; consent recorded at registration (demo)",
+  "sources": [
+    "WHO baseline (global evidence layer)",
+    "Country adaptation (synthetic demo pack)"
+  ],
+  "expert_response_window_min": {
+    "EMERGENCY": 5,
+    "URGENT": 15,
+    "PRIORITY": 240,
+    "ROUTINE": 1440
+  }
+}

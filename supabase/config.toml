@@ -1,0 +1,10 @@
+# Lovable Cloud / Supabase Edge Functions for CareGraph voice (ElevenLabs).
+# Secrets: set ELEVENLABS_API_KEY (and optionally ELEVENLABS_VOICE_ID) in Lovable → Cloud → Secrets.
+[functions.voice-health]
+verify_jwt = false
+
+[functions.voice-stt]
+verify_jwt = false
+
+[functions.voice-tts]
+verify_jwt = false

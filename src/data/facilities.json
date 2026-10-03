@@ -1,0 +1,412 @@
+{
+  "_meta": {
+    "source": "SIMULATED facility registry + status feed (synthetic, fictional facilities)",
+    "registry_version": "demo-2026-10-03",
+    "note": "Travel times are synthetic road-network estimates from the routing stub."
+  },
+  "facilities": [
+    {
+      "id": "sc-rampur",
+      "name": "Sub-centre Rampur",
+      "type": "Sub-centre",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "immunization"
+      ],
+      "staff_on_duty": [
+        "anm"
+      ],
+      "hours": "09:00–16:00",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 30,
+      "beds_note": "No inpatient beds",
+      "lat": 25.612,
+      "lng": 85.101,
+      "travel": {
+        "rampur": {
+          "road_km": 1,
+          "eta_min": 4
+        },
+        "dhanpur": {
+          "road_km": 11,
+          "eta_min": 22
+        }
+      }
+    },
+    {
+      "id": "phc-kheri",
+      "name": "PHC Kheri",
+      "type": "PHC (24x7)",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "mgso4",
+        "xray_none",
+        "pediatrics_basic"
+      ],
+      "staff_on_duty": [
+        "medical_officer",
+        "staff_nurse"
+      ],
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 12,
+      "beds_note": "6 beds · 2 free",
+      "lat": 25.648,
+      "lng": 85.122,
+      "travel": {
+        "rampur": {
+          "road_km": 7,
+          "eta_min": 14
+        },
+        "dhanpur": {
+          "road_km": 9,
+          "eta_min": 18
+        }
+      }
+    },
+    {
+      "id": "phc-dhanpur",
+      "name": "PHC Dhanpur",
+      "type": "PHC",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "pediatrics_basic"
+      ],
+      "staff_on_duty": [
+        "medical_officer"
+      ],
+      "hours": "08:00–14:00",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 45,
+      "beds_note": "4 beds",
+      "lat": 25.561,
+      "lng": 85.071,
+      "travel": {
+        "rampur": {
+          "road_km": 12,
+          "eta_min": 25
+        },
+        "dhanpur": {
+          "road_km": 2,
+          "eta_min": 6
+        }
+      }
+    },
+    {
+      "id": "nh-shanti",
+      "name": "Shanti Nursing Home",
+      "type": "Private hospital",
+      "ownership": "Private",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4"
+      ],
+      "staff_on_duty": [],
+      "staff_note": "Duty roster not published to network",
+      "hours": "24x7",
+      "acceptance": "UNKNOWN",
+      "status_updated_min_ago": 540,
+      "beds_note": "Status feed stale (9 h)",
+      "lat": 25.69,
+      "lng": 85.08,
+      "travel": {
+        "rampur": {
+          "road_km": 15,
+          "eta_min": 29
+        },
+        "dhanpur": {
+          "road_km": 19,
+          "eta_min": 36
+        }
+      }
+    },
+    {
+      "id": "chc-sonpur",
+      "name": "CHC Sonpur (FRU)",
+      "type": "CHC / First Referral Unit",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4",
+        "pediatrics_basic",
+        "xray"
+      ],
+      "staff_on_duty": [
+        "medical_officer",
+        "anaesthetist",
+        "staff_nurse"
+      ],
+      "staff_note": "Obstetrician on leave until 18:00",
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 20,
+      "beds_note": "30 beds · 5 free",
+      "lat": 25.7,
+      "lng": 85.16,
+      "travel": {
+        "rampur": {
+          "road_km": 18,
+          "eta_min": 33
+        },
+        "dhanpur": {
+          "road_km": 24,
+          "eta_min": 44
+        }
+      }
+    },
+    {
+      "id": "dh-barhi",
+      "name": "District Hospital Barhi",
+      "type": "District Hospital",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4",
+        "pediatrics",
+        "orthopaedics",
+        "xray",
+        "icu"
+      ],
+      "staff_on_duty": [
+        "obstetrician",
+        "anaesthetist",
+        "pediatrician",
+        "orthopaedic_surgeon",
+        "medical_officer"
+      ],
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 8,
+      "beds_note": "Labour ward · 3 beds free",
+      "lat": 25.735,
+      "lng": 85.205,
+      "travel": {
+        "rampur": {
+          "road_km": 21,
+          "eta_min": 38
+        },
+        "dhanpur": {
+          "road_km": 27,
+          "eta_min": 47
+        }
+      }
+    },
+    {
+      "id": "chc-mahua",
+      "name": "CHC Mahua",
+      "type": "CHC",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "mgso4",
+        "xray"
+      ],
+      "staff_on_duty": [
+        "medical_officer",
+        "staff_nurse"
+      ],
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 60,
+      "beds_note": "30 beds",
+      "lat": 25.52,
+      "lng": 85.18,
+      "travel": {
+        "rampur": {
+          "road_km": 24,
+          "eta_min": 45
+        },
+        "dhanpur": {
+          "road_km": 17,
+          "eta_min": 31
+        }
+      }
+    },
+    {
+      "id": "sdh-nawada",
+      "name": "Sub-district Hospital Nawada",
+      "type": "Sub-district Hospital",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4",
+        "xray"
+      ],
+      "staff_on_duty": [
+        "medical_officer",
+        "anaesthetist"
+      ],
+      "staff_note": "Obstetrician post vacant",
+      "hours": "24x7",
+      "acceptance": "DIVERTING",
+      "status_updated_min_ago": 25,
+      "beds_note": "On diversion — OT under maintenance",
+      "lat": 25.59,
+      "lng": 85.25,
+      "travel": {
+        "rampur": {
+          "road_km": 29,
+          "eta_min": 52
+        },
+        "dhanpur": {
+          "road_km": 33,
+          "eta_min": 58
+        }
+      }
+    },
+    {
+      "id": "mch-gaya",
+      "name": "Govt. Medical College Hospital",
+      "type": "Medical College (tertiary)",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "blood_transfusion",
+        "mgso4",
+        "pediatrics",
+        "orthopaedics",
+        "xray",
+        "icu",
+        "nicu",
+        "genetics_clinic",
+        "audiology"
+      ],
+      "staff_on_duty": [
+        "obstetrician",
+        "anaesthetist",
+        "pediatrician",
+        "orthopaedic_surgeon",
+        "clinical_geneticist",
+        "medical_officer"
+      ],
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 15,
+      "beds_note": "High occupancy · queue ~2 h",
+      "lat": 25.8,
+      "lng": 85.3,
+      "travel": {
+        "rampur": {
+          "road_km": 46,
+          "eta_min": 82
+        },
+        "dhanpur": {
+          "road_km": 41,
+          "eta_min": 74
+        }
+      }
+    },
+    {
+      "id": "uphc-barhi",
+      "name": "Urban PHC Barhi",
+      "type": "Urban PHC",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "pediatrics_basic"
+      ],
+      "staff_on_duty": [
+        "medical_officer"
+      ],
+      "hours": "08:00–20:00",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 90,
+      "beds_note": "OPD only",
+      "lat": 25.728,
+      "lng": 85.195,
+      "travel": {
+        "rampur": {
+          "road_km": 20,
+          "eta_min": 36
+        },
+        "dhanpur": {
+          "road_km": 26,
+          "eta_min": 45
+        }
+      }
+    },
+    {
+      "id": "mh-sonpur",
+      "name": "Mission Hospital Sonpur",
+      "type": "Charitable hospital",
+      "ownership": "Not-for-profit",
+      "services": [
+        "anc",
+        "normal_delivery",
+        "caesarean_section",
+        "pediatrics",
+        "xray"
+      ],
+      "staff_on_duty": [
+        "obstetrician",
+        "pediatrician"
+      ],
+      "staff_note": "No blood storage unit",
+      "hours": "24x7",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 40,
+      "beds_note": "60 beds",
+      "lat": 25.705,
+      "lng": 85.17,
+      "travel": {
+        "rampur": {
+          "road_km": 19,
+          "eta_min": 35
+        },
+        "dhanpur": {
+          "road_km": 25,
+          "eta_min": 46
+        }
+      }
+    },
+    {
+      "id": "sc-dhanpur",
+      "name": "Sub-centre Dhanpur",
+      "type": "Sub-centre",
+      "ownership": "Public",
+      "services": [
+        "anc",
+        "immunization"
+      ],
+      "staff_on_duty": [
+        "anm"
+      ],
+      "hours": "09:00–16:00",
+      "acceptance": "ACCEPTING",
+      "status_updated_min_ago": 50,
+      "beds_note": "No inpatient beds",
+      "lat": 25.555,
+      "lng": 85.062,
+      "travel": {
+        "rampur": {
+          "road_km": 13,
+          "eta_min": 27
+        },
+        "dhanpur": {
+          "road_km": 1,
+          "eta_min": 3
+        }
+      }
+    }
+  ]
+}
