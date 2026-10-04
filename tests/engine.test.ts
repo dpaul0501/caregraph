@@ -416,3 +416,17 @@ describe('knowledge retrieval and context', () => {
     expect(a.getState().audit.some((e) => e.tool === 'load_knowledge')).toBe(true);
   });
 });
+
+describe('beyond pregnancy: general danger signs in any language', () => {
+  it.each([
+    '2 year old boy, fever for 3 days, breathing very fast, not able to drink',
+    '2 साल का बच्चा, तीन दिन से बुखार, कुछ पी नहीं पा रहा',
+    'বাচ্চা জ্বর, কিছু খেতে পারছে না',
+  ])('a child who cannot drink is urgent: %s', async (text) => {
+    const a = new CareGraphAgent('open');
+    a.speed = 0;
+    await a.submitIntake(text, 'SMS');
+    expect(a.getState().triage!.fired.map((r) => r.id)).toContain('G-05');
+    expect(a.getState().awaiting).toBe('AUTHORIZE_TRANSFER');
+  });
+});

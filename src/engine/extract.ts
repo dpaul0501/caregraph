@@ -70,6 +70,10 @@ const HI_GLOSSARY: [RegExp, string][] = [
   [/खून आना|रक्तस्राव/g, ' bleeding '],
   [/बुखार/g, ' fever '],
   [/बदन\s*दर्द|शरीर\s*में\s*दर्द/g, ' body aches '],
+  [/(?:सांस|साँस)\s*(?:लेने\s*में\s*(?:बहुत\s*)?(?:तकलीफ़|तकलीफ|दिक्कत)|फूल(?:ना|रही|रहा))/g, ' difficulty breathing '],
+  [/बेहोश/g, ' unconscious '],
+  [/(?:कुछ\s*(?:भी\s*)?)?पी\s*नहीं\s*पा\s*(?:रहा|रही)|दूध\s*नहीं\s*पी\s*(?:रहा|रही)/g, ' cannot drink '],
+  [/सीने\s*में\s*दर्द|छाती\s*में\s*दर्द/g, ' chest pain '],
   [/नहीं/g, ' no '],
   [/और/g, ' and '],
 ];
@@ -92,6 +96,8 @@ const BN_GLOSSARY: [RegExp, string][] = [
   [/জ্বর/g, ' fever '],
   [/শ্বাসকষ্ট/g, ' difficulty breathing '],
   [/অজ্ঞান|সাড়া দিচ্ছে না/g, ' unconscious '],
+  [/(?:কিছু\s*)?(?:খেতে|পান\s*করতে)\s*পারছে\s*না|দুধ\s*খাচ্ছে\s*না/g, ' cannot drink '],
+  [/বুকে\s*ব্যথা/g, ' chest pain '],
   [/না\b/g, ' no '],
   [/আর|এবং/g, ' and '],
 ];
@@ -324,7 +330,7 @@ export function extractCase(raw: string, opts: { source: string; at: number; evi
 
   // General danger signs (WHO ETAT / IMCI)
   push(term(text, 'unconscious', /\b(unconscious|not responding|unresponsive|fainted|passed out|very drowsy)\b/, 0.88));
-  push(term(text, 'unable_to_drink', /\b(can'?t drink|cannot drink|unable to drink|vomit(?:s|ing)? everything)\b/, 0.88));
+  push(term(text, 'unable_to_drink', /\b(can'?t drink|cannot drink|unable to drink|not able to drink|not drinking|unable to (?:breast)?feed|not (?:breast)?feeding|vomit(?:s|ing)? everything)\b/, 0.88));
   push(term(text, 'severe_bleeding', /\b(heavy bleeding|bleeding (?:a lot|heavily)|lots of blood)\b/, 0.88));
 
   // Fever syndrome
