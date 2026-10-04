@@ -13,7 +13,7 @@ import { MODELS } from './models';
 import { evaluate, factsIn } from './logic';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
 import { buildPacket, packetToText, type DecisionPacket } from './summary';
-import { escalationThreshold, hiddenEmergencyRisk, isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
+import { escalationThreshold, hiddenEmergencyRisk, isEstablished, learnAnswer, missingInformation, runTriage, selectNextQuestion } from './triage';
 import { assessUncertainty, type Conflict, type UncertaintyDim } from './uncertainty';
 import type {
   Actor, AuditEvent, EvidenceClass, Fact, Facts, Protocol, QuestionDef, QuestionScore, StopReason, TriageLevel, TriageResult,
@@ -484,6 +484,12 @@ export class CareGraphAgent {
           facts.push({ key: k, value: null, status: 'UNKNOWN', source: `${s.worker.name} (answer)`, evidence: 'FRONTLINE_REPORT', at: s.clock, note: 'Asked — health worker could not determine' });
       }
       this.say({ role: 'chw', text, via: 'answer' });
+      // Learning: every real answer updates how often each answer occurs locally.
+      if ('outcome' in a) learnAnswer(q, a.outcome);
+      else if ('bp' in a && q.outcomes.length === 3) {
+        const bp = parseBP(a.bp)!;
+        learnAnswer(q, bp.sbp >= 160 || bp.dbp >= 110 ? 2 : bp.sbp >= 140 || bp.dbp >= 90 ? 1 : 0);
+      }
       this.tick(q.time_cost_min);
       await this.tool(
         q.answer_type === 'bp' ? 'get_current_observations' : 'record_answer',
@@ -537,6 +543,31 @@ export class CareGraphAgent {
       for (const q of p.questions)
         modelValue[q.id] = Math.max(0, ...r.voi.filter((v) => termDeps.get(v.termId)!.some((f) => q.facts.includes(f))).map((v) => v.value));
     }
+    // Knowledge graph → which evidence to collect: unknown findings that would separate the
+    // high-risk problems still open raise the value of the questions that resolve them.
+    const kgValue = await this.tool(
+      'plan_evidence',
+      `kg:${p.id}`,
+      () => {
+        const v: Record<string, number> = {};
+        for (const c of s.clusters) {
+          if (c.status === 'LESS_LIKELY' || c.status === 'PROTOCOL_MET') continue;
+          const total = c.findings.filter((f) => f.rel === 'supports').reduce((a, f) => a + f.w, 0) || 1;
+          for (const f of c.findings) {
+            if (f.rel !== 'supports' || f.state !== 'UNKNOWN') continue;
+            const deps = factsIn(KG.findings[f.id].when);
+            for (const q of p.questions) if (q.facts.some((k) => deps.includes(k))) v[q.id] = (v[q.id] ?? 0) + KG_EVIDENCE_WEIGHT * c.risk * (f.w / total);
+          }
+        }
+        return v;
+      },
+      (v) => {
+        const top = Object.entries(v).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        return top.length ? `evidence that separates open problems: ${top.map(([q, x]) => `${q} +${x.toFixed(2)}`).join(', ')}` : 'no open problem needs more evidence';
+      },
+      { evidence: 'VERIFIED_CLINICAL' },
+    );
+    for (const [q, x] of Object.entries(kgValue)) modelValue[q] = (modelValue[q] ?? 0) + x;
     s.missing = missingInformation(p, s.facts, triage);
     await this.tool(
       'get_missing_information',
@@ -818,6 +849,18 @@ export class CareGraphAgent {
       }
     }
     s.facilitySearch = search;
+    // Expected minutes to a confirmed bed = travel + (1 − learned acceptance) × cost of a retry.
+    const RETRY_COST_MIN = 15;
+    const expected = (id: string) => {
+      const c = search.candidates.find((x) => x.facility.id === id)!;
+      return c.etaMin + (1 - acceptanceRate(c.facility)) * RETRY_COST_MIN;
+    };
+    const eligible = search.top.filter((id) => search.candidates.find((c) => c.facility.id === id)!.eligibility === 'ELIGIBLE');
+    if (eligible.length > 1) {
+      const ranked = [...eligible].sort((a, b) => expected(a) - expected(b));
+      search.top = [...ranked, ...search.top.filter((id) => !eligible.includes(id))];
+      if (search.selectedId && eligible.includes(search.selectedId) && ranked[0] !== search.selectedId && !riskNote.includes('switched')) search.selectedId = ranked[0];
+    }
     const sel = search.candidates.find((c) => c.facility.id === search.selectedId);
     const nearest = search.candidates[0];
     if (!sel) {
@@ -920,6 +963,7 @@ export class CareGraphAgent {
         }
         this.focus('Human acknowledgement — receiving facility', 'track_referral', `Reply window ${policy.facility_response_min} min; a decline or silence moves to the next capable facility.`);
         const reply = await this.askFacility(sel, policy.facility_response_min, attempt);
+        learnAcceptance(sel.facility, !!reply?.accepted);
         if (reply?.accepted) {
           this.tick(urgent ? 3.5 : 25);
           acceptedBy = reply;
@@ -1004,6 +1048,7 @@ export class CareGraphAgent {
     await this.pause(1600);
     const mode = s.options.acceptance;
     const accept = mode === 'always' ? true : mode === 'decline-first' ? attempt > 0 : Math.random() < (c.facility.acceptance_rate ?? 0.8);
+    // (automatic replies follow the facility's true pattern; the agent only sees outcomes and learns from them)
     if (accept) {
       const fr = s.scenario.facilityResponse;
       return attempt === 0 ? { accepted: true, by: fr.by, role: `${fr.role}`, text: fr.text } : { accepted: true, by: 'Duty doctor', role: c.facility.name, text: 'ACCEPT. Send the patient; team informed.' };
@@ -1070,6 +1115,25 @@ export class CareGraphAgent {
 }
 
 class Cancelled extends Error {}
+
+/** Scale of the knowledge-graph evidence value relative to protocol escalation value. */
+const KG_EVIDENCE_WEIGHT = 0.15;
+
+// ---- Learned hospital acceptance (shared across cases): each yes/no updates a Beta posterior ----
+const acceptance = new Map<string, { yes: number; n: number }>();
+const ACCEPT_PSEUDO = 10;
+export function acceptanceRate(f: Facility): number {
+  const a = acceptance.get(f.id) ?? { yes: 0, n: 0 };
+  const base = f.acceptance_rate ?? 0.8;
+  return (base * ACCEPT_PSEUDO + a.yes) / (ACCEPT_PSEUDO + a.n);
+}
+function learnAcceptance(f: Facility, accepted: boolean) {
+  const a = acceptance.get(f.id) ?? { yes: 0, n: 0 };
+  acceptance.set(f.id, { yes: a.yes + (accepted ? 1 : 0), n: a.n + 1 });
+}
+export function resetAcceptanceLearning() {
+  acceptance.clear();
+}
 
 const pct = (x: number) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
 

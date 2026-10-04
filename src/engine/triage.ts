@@ -27,11 +27,38 @@ export function runTriage(protocol: Protocol, facts: Facts): TriageResult {
   };
 }
 
+// ---- Learned answer frequencies (shared across all cases on this server) ----
+// Each answer updates a Dirichlet over the question's outcomes, starting from the protocol's
+// priors worth PSEUDO_COUNT observations. Local reality gradually reshapes what is worth asking.
+const PSEUDO_COUNT = 20;
+const answerCounts = new Map<string, number[]>();
+
+export function learnAnswer(q: QuestionDef, outcomeIndex: number) {
+  const c = answerCounts.get(q.id) ?? q.outcomes.map(() => 0);
+  c[outcomeIndex] += 1;
+  answerCounts.set(q.id, c);
+}
+export function learnedAnswers(questionId: string) {
+  return answerCounts.get(questionId) ?? null;
+}
+export function resetLearning() {
+  answerCounts.clear();
+}
+
 function priorsFor(q: QuestionDef, facts: Facts): { priors: number[]; reason?: string } {
+  let base = q.outcomes.map((o) => o.prior);
+  let reason: string | undefined;
   for (const m of q.prior_modifiers ?? []) {
-    if (evaluate(m.when, facts) === 'TRUE') return { priors: m.priors, reason: m.reason };
+    if (evaluate(m.when, facts) === 'TRUE') {
+      base = m.priors;
+      reason = m.reason;
+      break;
+    }
   }
-  return { priors: q.outcomes.map((o) => o.prior) };
+  const counts = answerCounts.get(q.id);
+  if (!counts) return { priors: base, reason };
+  const n = counts.reduce((a, b) => a + b, 0);
+  return { priors: base.map((p, i) => (p * PSEUDO_COUNT + counts[i]) / (PSEUDO_COUNT + n)), reason: reason ? `${reason}; ${n} local answers` : `${n} local answers` };
 }
 
 /** OBSERVED or REPORTED. UNKNOWN and INFERRED (awaiting confirmation) are not established. */

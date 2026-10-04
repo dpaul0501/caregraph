@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { extractCase, parseBP, wordsToDigits } from '../src/engine/extract';
 import { evaluate } from '../src/engine/logic';
-import { runTriage, selectNextQuestion } from '../src/engine/triage';
+import { resetLearning, runTriage, selectNextQuestion } from '../src/engine/triage';
+import { resetAcceptanceLearning } from '../src/engine/orchestrator';
+import { beforeEach } from 'vitest';
+
+beforeEach(() => {
+  resetLearning();
+  resetAcceptanceLearning();
+});
 import { assertTransition } from '../src/engine/referral';
 import { CareGraphAgent } from '../src/engine/orchestrator';
 import { SCENARIOS } from '../src/data/scenarios';
@@ -340,5 +347,42 @@ describe('number words from speech-to-text', () => {
     const f = Object.fromEntries(extractCase('इकतीस साल की महिला, चौंतीस हफ़्ते की गर्भवती, तेज़ सिरदर्द', { source: 't', at: 0 }).facts.map((x) => [x.key, x]));
     expect(f.age_years.value).toBe(31);
     expect(f.gestational_weeks.value).toBe(34);
+  });
+});
+
+describe('evidence planning and learning', () => {
+  it('knowledge graph raises the value of evidence that separates open problems', async () => {
+    const a = agent('pediatric');
+    await a.submitIntake(SCENARIOS.pediatric.intake.en, 'test');
+    await a.answer('q_trauma', { outcome: 0 });
+    const s = a.getState();
+    const sclera = s.ranking.find((r) => r.question.id === 'q_sclera')!;
+    expect(sclera.modelGain).toBeGreaterThan(0); // evidence value from the graph
+    expect(s.audit.some((e) => e.tool === 'plan_evidence' && /q_sclera/.test(e.detail ?? ''))).toBe(true);
+  });
+
+  it('learns local answer frequencies and uses them to value questions', async () => {
+    const { learnedAnswers } = await import('../src/engine/triage');
+    for (let i = 0; i < 3; i++) {
+      const a = agent('maternal');
+      await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
+      await a.answer('q_bp', { bp: '170/112' });
+    }
+    expect(learnedAnswers('q_bp')).toEqual([0, 0, 3]);
+    const a = agent('maternal');
+    await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
+    expect(a.getState().ranking.find((r) => r.question.id === 'q_bp')!.priorReason).toMatch(/3 local answers/);
+  });
+
+  it('learns hospital acceptance from replies', async () => {
+    const { acceptanceRate, FACILITIES } = await import('../src/engine/orchestrator');
+    const dh = FACILITIES.find((f) => f.id === 'dh-barhi')!;
+    const before = acceptanceRate(dh);
+    const a = agent('maternal');
+    a.setOption('acceptance', 'decline-first');
+    await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
+    await a.answer('q_bp', { bp: '166/108' });
+    await a.authorizeTransfer();
+    expect(acceptanceRate(dh)).toBeLessThan(before);
   });
 });
