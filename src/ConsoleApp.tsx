@@ -36,9 +36,22 @@ export default function ConsoleApp() {
   };
   const [view, setView] = useState<View>(initialView);
   const [demo, setDemo] = useState(true);
+  const [checking, setChecking] = useState(true);
   useEffect(() => {
     voiceHealth().then((h) => setVoiceLive(h.elevenlabs));
-    telephonyHealth().then(setTel);
+    let stop = false;
+    // Wait for the server (it may be waking up), then keep re-checking until it answers.
+    const probe = async () => {
+      const h = await telephonyHealth();
+      if (stop) return;
+      setChecking(false);
+      if (h) setTel(h);
+      else setTimeout(probe, 20_000);
+    };
+    void probe();
+    return () => {
+      stop = true;
+    };
   }, []);
   // The server is the product: every view runs on it when reachable. The in-browser engine is
   // only an offline fallback for the Web view.
@@ -60,7 +73,7 @@ export default function ConsoleApp() {
     <DemoContext.Provider value={demo}>
       <AgentContext.Provider value={active}>
         <div className="flex h-full flex-col">
-          <Header voiceLive={voiceLive} onDetails={() => setDetails(true)} view={view} setView={setView} demo={demo} setDemo={setDemo} telephony={tel} onReset={reset} />
+          <Header voiceLive={voiceLive} onDetails={() => setDetails(true)} view={view} setView={setView} demo={demo} setDemo={setDemo} telephony={tel} connecting={checking && !tel} onReset={reset} />
           {view === 'web' ? (
             <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(360px,2fr)_minmax(480px,3fr)] lg:overflow-hidden">
               <div className="flex min-h-[620px] flex-col gap-3 lg:min-h-0">

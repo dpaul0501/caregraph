@@ -13,6 +13,7 @@ export function Header({
   demo,
   setDemo,
   telephony,
+  connecting,
   onReset,
 }: {
   voiceLive: boolean;
@@ -22,6 +23,7 @@ export function Header({
   demo: boolean;
   setDemo: (d: boolean) => void;
   telephony: { mode: string } | null;
+  connecting?: boolean;
   onReset: () => void;
 }) {
   const { s, agent } = useAgent();
@@ -51,8 +53,8 @@ export function Header({
         title={telephony ? `CareGraph server (${telephony.mode})` : 'Server unreachable — running the engine in this browser'}
         className={cx('flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold', telephony ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800')}
       >
-        <span className={cx('h-1.5 w-1.5 rounded-full', telephony ? 'bg-emerald-500' : 'bg-amber-500')} />
-        {telephony ? 'CareGraph server connected' : 'Offline · in-browser engine'}
+        <span className={cx('h-1.5 w-1.5 rounded-full', telephony ? 'bg-emerald-500' : connecting ? 'animate-pulse bg-amber-500' : 'bg-amber-500')} />
+        {telephony ? 'CareGraph server connected' : connecting ? 'Connecting to CareGraph server…' : 'Offline · in-browser engine (retrying)'}
       </span>
 
       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold" title="Demo mode offers two scripted cases; off = describe any patient">

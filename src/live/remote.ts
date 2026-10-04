@@ -144,10 +144,11 @@ export async function simDemoRecording(scenario: string): Promise<{ url: string;
   return r.json();
 }
 
-export async function telephonyHealth(): Promise<{ mode: string; twilio: boolean; elevenlabs: boolean } | null> {
+export async function telephonyHealth(timeoutMs = 60_000): Promise<{ mode: string; twilio: boolean; elevenlabs: boolean } | null> {
   if (TEL === '/tel' && !import.meta.env.DEV) return null; // no server configured for this static deployment
   try {
-    const r = await fetch(`${TEL}/live/health`, { signal: AbortSignal.timeout(2000) });
+    // Generous timeout: a sleeping free-tier host can take ~50 s to wake.
+    const r = await fetch(`${TEL}/live/health`, { signal: AbortSignal.timeout(timeoutMs) });
     return r.ok ? r.json() : null;
   } catch {
     return null;
