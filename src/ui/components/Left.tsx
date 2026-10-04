@@ -47,7 +47,7 @@ export function PatientStrip() {
   );
 }
 
-export function Conversation({ voiceLive }: { voiceLive: boolean }) {
+export function Conversation({ voiceLive, speakQuestions = true }: { voiceLive: boolean; speakQuestions?: boolean }) {
   const { s } = useAgent();
   const scroller = useRef<HTMLDivElement>(null);
   const spoken = useRef(new Set<number>());
@@ -58,14 +58,14 @@ export function Conversation({ voiceLive }: { voiceLive: boolean }) {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [s.messages.length, s.awaiting]);
 
-  // Speak each new question in the selected language.
+  // Speak each new question in the selected language (web view only: on the phone view the IVR already speaks it).
   useEffect(() => {
     const last = s.messages[s.messages.length - 1];
     if (last?.kind === 'question' && !spoken.current.has(last.id)) {
       spoken.current.add(last.id);
-      speak(last.text, s.lang, voiceLive);
+      if (speakQuestions) speak(last.text, s.lang, voiceLive);
     }
-  }, [s.messages, s.lang, voiceLive]);
+  }, [s.messages, s.lang, voiceLive, speakQuestions]);
 
   return (
     <section className="panel flex min-h-0 flex-1 flex-col">

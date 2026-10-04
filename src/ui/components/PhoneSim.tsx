@@ -179,6 +179,7 @@ function CallView({ remote }: { remote: RemoteAgent }) {
   async function press(k: string) {
     if (step.kind !== 'gather' || busy) return;
     playing.current?.pause();
+    window.speechSynthesis.cancel();
     if (step.numDigits === 1) {
       setLines((l) => [...l, { who: 'me', text: `⌨ ${k}` }]);
       return post(step.action!, { Digits: k });

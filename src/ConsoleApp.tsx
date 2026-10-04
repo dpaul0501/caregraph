@@ -92,7 +92,7 @@ export default function ConsoleApp() {
               </div>
               <div className="flex min-h-[560px] flex-col gap-3 lg:min-h-0">
                 <PatientStrip />
-                <Conversation voiceLive={voiceLive} />
+                <Conversation voiceLive={voiceLive} speakQuestions={false} />
               </div>
               <div className="flex min-h-[620px] flex-col lg:min-h-0">
                 <ReasoningPanel />
