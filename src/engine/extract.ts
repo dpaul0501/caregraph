@@ -74,11 +74,151 @@ const HI_GLOSSARY: [RegExp, string][] = [
   [/और/g, ' and '],
 ];
 
-export function normalizeHindi(text: string): string {
-  if (!/[\u0900-\u097F]/.test(text)) return text;
-  let t = text;
-  for (const [re, en] of HI_GLOSSARY) t = t.replace(re, en);
-  return t.replace(/[\u0900-\u097F।]+/g, ' ').replace(/\s+/g, ' ').trim();
+/** Bengali → English glossary (demo coverage; a country pack would ship a validated value set). */
+const BN_GLOSSARY: [RegExp, string][] = [
+  [/(\d+)\s*বছর(?:ের)?/g, '$1 years old '],
+  [/(\d+)\s*সপ্তাহ(?:ের)?/g, '$1 weeks '],
+  [/মহিলা|নারী|মেয়ে/g, ' woman '],
+  [/ছেলে|বাচ্চা/g, ' boy '],
+  [/গর্ভবতী|অন্তঃসত্ত্বা/g, ' pregnant '],
+  [/(?:খুব|প্রচণ্ড|তীব্র)\s*মাথা\s*ব্যথা|(?:খুব|প্রচণ্ড|তীব্র)\s*মাথাব্যথা/g, ' severe headache '],
+  [/মাথা\s*ব্যথা|মাথাব্যথা/g, ' headache '],
+  [/সকাল থেকে/g, ' since morning '],
+  [/ফোলা|ফুলে/g, ' swelling '],
+  [/মাথা ঘোরা/g, ' dizzy '],
+  [/ঝাপসা/g, ' blurred vision '],
+  [/খিঁচুনি/g, ' fits '],
+  [/রক্তপাত/g, ' bleeding '],
+  [/জ্বর/g, ' fever '],
+  [/শ্বাসকষ্ট/g, ' difficulty breathing '],
+  [/অজ্ঞান|সাড়া দিচ্ছে না/g, ' unconscious '],
+  [/না\b/g, ' no '],
+  [/আর|এবং/g, ' and '],
+];
+
+/** Hindi and Bengali number words 1–50 (speech-to-text writes ages/weeks as words). Longest first. */
+const NATIVE_NUMBER_WORDS: [string, number][] = [
+  ['পঁয়তাল্লিশ', 45],
+  ['বিয়াল্লিশ', 42],
+  ['চুয়াল্লিশ', 44],
+  ['পঁয়ত্রিশ', 35],
+  ['সাঁইত্রিশ', 37],
+  ['তেতাল্লিশ', 43],
+  ['সাতচল্লিশ', 47],
+  ['तैंतालीस', 43],
+  ['पैंतालीस', 45],
+  ['सैंतालीस', 47],
+  ['अड़तालीस', 48],
+  ['ঊনচল্লিশ', 39],
+  ['একচল্লিশ', 41],
+  ['ছেচল্লিশ', 46],
+  ['আটচল্লিশ', 48],
+  ['ঊনপঞ্চাশ', 49],
+  ['सत्ताईस', 27],
+  ['अट्ठाईस', 28],
+  ['उनतालीस', 39],
+  ['इकतालीस', 41],
+  ['छियालीस', 46],
+  ['ছাব্বিশ', 26],
+  ['ঊনত্রিশ', 29],
+  ['একত্রিশ', 31],
+  ['তেত্রিশ', 33],
+  ['চৌত্রিশ', 34],
+  ['আটত্রিশ', 38],
+  ['ग्यारह', 11],
+  ['पंद्रह', 15],
+  ['उन्नीस', 19],
+  ['इक्कीस', 21],
+  ['पच्चीस', 25],
+  ['छब्बीस', 26],
+  ['बत्तीस', 32],
+  ['तैंतीस', 33],
+  ['चौंतीस', 34],
+  ['पैंतीस', 35],
+  ['छत्तीस', 36],
+  ['सैंतीस', 37],
+  ['अड़तीस', 38],
+  ['बयालीस', 42],
+  ['चवालीस', 44],
+  ['চব্বিশ', 24],
+  ['বত্রিশ', 32],
+  ['ছত্রিশ', 36],
+  ['চল্লিশ', 40],
+  ['পঞ্চাশ', 50],
+  ['सत्रह', 17],
+  ['अठारह', 18],
+  ['चौबीस', 24],
+  ['उनतीस', 29],
+  ['इकतीस', 31],
+  ['चालीस', 40],
+  ['उनचास', 49],
+  ['এগারো', 11],
+  ['চোদ্দ', 14],
+  ['পনেরো', 15],
+  ['সতেরো', 17],
+  ['আঠারো', 18],
+  ['পঁচিশ', 25],
+  ['সাতাশ', 27],
+  ['ত্রিশ', 30],
+  ['पाँच', 5],
+  ['बारह', 12],
+  ['तेरह', 13],
+  ['चौदह', 14],
+  ['सोलह', 16],
+  ['बाईस', 22],
+  ['तेईस', 23],
+  ['पचास', 50],
+  ['পাঁচ', 5],
+  ['বারো', 12],
+  ['তেরো', 13],
+  ['ষোলো', 16],
+  ['উনিশ', 19],
+  ['একুশ', 21],
+  ['বাইশ', 22],
+  ['তেইশ', 23],
+  ['আঠাশ', 28],
+  ['तीन', 3],
+  ['चार', 4],
+  ['सात', 7],
+  ['बीस', 20],
+  ['तीस', 30],
+  ['দুই', 2],
+  ['তিন', 3],
+  ['চার', 4],
+  ['ছয়', 6],
+  ['সাত', 7],
+  ['নয়', 9],
+  ['বিশ', 20],
+  ['एक', 1],
+  ['दो', 2],
+  ['छह', 6],
+  ['आठ', 8],
+  ['नौ', 9],
+  ['दस', 10],
+  ['এক', 1],
+  ['আট', 8],
+  ['দশ', 10],
+];
+
+/** Devanagari and Bengali digits and number words → ASCII digits. */
+function nativeDigits(text: string): string {
+  let t = text.replace(/[\u0966-\u096F]/g, (d) => String(d.charCodeAt(0) - 0x0966)).replace(/[\u09E6-\u09EF]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
+  if (!/[\u0900-\u09FF]/.test(t)) return t;
+  for (const [w, n] of NATIVE_NUMBER_WORDS) t = t.replace(new RegExp(`(^|[\\s,।.])${w}(?=[\\s,।.]|$)`, 'g'), `$1${n}`);
+  return t;
+}
+
+export function normalizeHindi(raw: string): string {
+  let t = nativeDigits(raw);
+  if (/[\u0980-\u09FF]/.test(t)) {
+    for (const [re, en] of BN_GLOSSARY) t = t.replace(re, en);
+    t = t.replace(/[\u0980-\u09FF।]+/g, ' ');
+  }
+  if (/[\u0900-\u097F]/.test(t)) {
+    for (const [re, en] of HI_GLOSSARY) t = t.replace(re, en);
+    t = t.replace(/[\u0900-\u097F।]+/g, ' ');
+  }
+  return t === raw ? raw : t.replace(/\s+/g, ' ').trim();
 }
 
 const NEGATORS = /\b(no|not|denies|denied|without|never|nor|none)\b[^.,;]{0,25}$/;

@@ -139,8 +139,8 @@ export async function simRecording(blob: Blob): Promise<string> {
   return (await r.json()).url;
 }
 
-export async function simDemoRecording(scenario: string): Promise<{ url: string; text: string }> {
-  const r = await fetch(`${TEL}/sim/demo-recording?scenario=${scenario}`, { method: 'POST' });
+export async function simDemoRecording(scenario: string, lang = 'hi'): Promise<{ url: string; text: string; audio?: string }> {
+  const r = await fetch(`${TEL}/sim/demo-recording?scenario=${scenario}&lang=${lang}`, { method: 'POST' });
   return r.json();
 }
 

@@ -57,6 +57,7 @@ export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
     intake: {
       en: 'Thirty-one-year-old woman, 34 weeks pregnant, severe headache since morning and swelling.',
       hi: '31 साल की महिला, 34 हफ़्ते की गर्भवती, सुबह से तेज़ सिरदर्द और सूजन।',
+      bn: '৩১ বছরের মহিলা, ৩৪ সপ্তাহের গর্ভবতী, সকাল থেকে খুব মাথাব্যথা আর পা ফোলা।',
     },
     demoAnswers: { q_bp: { bp: '166/108' }, q_convulsions: { outcome: 1 }, q_bleeding: { outcome: 1 }, q_visual: { outcome: 1 }, q_epigastric: { outcome: 1 }, q_chest: { outcome: 1 } },
     diagnosisNote: 'Not established — not required to choose the safe next action',

@@ -1,3 +1,4 @@
+import { TEL } from '@/live/remote';
 /**
  * Voice access layer (ElevenLabs). REAL MODE when a key is configured server-side;
  * DEMO FALLBACK otherwise (pre-transcribed intake, browser speech synthesis).
@@ -10,18 +11,19 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
 
+/** Voice runs on the CareGraph server (keys stay there); Supabase functions as an alternative host. */
 function endpoint(name: 'voice-health' | 'voice-stt' | 'voice-tts') {
-  return SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/${name}` : `/api/${name}`;
+  if (SUPABASE_URL) return `${SUPABASE_URL}/functions/v1/${name}`;
+  return `${TEL}/voice/${name.replace('voice-', '')}`;
 }
 function headers(extra: Record<string, string> = {}): Record<string, string> {
   return SUPABASE_KEY ? { apikey: SUPABASE_KEY, authorization: `Bearer ${SUPABASE_KEY}`, ...extra } : extra;
 }
 
 export async function voiceHealth(): Promise<{ elevenlabs: boolean }> {
-  // Static hosting without Supabase has no voice backend: skip the probe (no console 404).
-  if (!SUPABASE_URL && !import.meta.env.DEV) return { elevenlabs: false };
+  if (!SUPABASE_URL && TEL === '/tel' && !import.meta.env.DEV) return { elevenlabs: false };
   try {
-    const r = await fetch(endpoint('voice-health'), { headers: headers(), signal: AbortSignal.timeout(3000) });
+    const r = await fetch(endpoint('voice-health'), { headers: headers(), signal: AbortSignal.timeout(60_000) });
     if (!r.ok) return { elevenlabs: false };
     return await r.json();
   } catch {

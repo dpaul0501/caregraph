@@ -204,7 +204,7 @@ export function Home() {
           </div>
         </div>
         <div className="panel p-5">
-          <div className="panel-title">Partners in the stack</div>
+          <div className="panel-title">Technology used</div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
             <div><b>ElevenLabs</b> — Hindi speech in and out</div>
             <div><b>Lovable</b> — judge-facing app</div>

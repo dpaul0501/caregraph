@@ -208,8 +208,18 @@ function CallView({ remote }: { remote: RemoteAgent }) {
 
   async function demoVoice(scenario: string) {
     setBusy(true);
-    const { url, text } = await simDemoRecording(scenario);
+    const lang = remote.getState().lang ?? 'hi';
+    const { url, text, audio } = await simDemoRecording(scenario, lang);
     setLines((l) => [...l, { who: 'me', text: `🎙 “${text}”` }]);
+    // Play the worker's voice note so viewers hear what CareGraph hears.
+    if (audio)
+      await new Promise<void>((resolve) => {
+        const a = new Audio(`${TEL}${audio}`);
+        playing.current = a;
+        a.onended = () => resolve();
+        a.onerror = () => resolve();
+        a.play().catch(() => resolve());
+      });
     await post(step.action!, { RecordingUrl: url });
   }
 

@@ -53,7 +53,8 @@ export const SANDBOX_WORKER = '+910000000009';
 const VOICE_ENV = {
   ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY,
   ELEVENLABS_STT_MODEL: env.ELEVENLABS_STT_MODEL,
-  ELEVENLABS_TTS_MODEL: env.ELEVENLABS_PHONE_TTS_MODEL ?? 'eleven_flash_v2_5',
+  // Multilingual v2: correct Hindi and Bengali (Flash v2.5 garbles Bengali). Prompts are cached, so latency is paid once.
+  ELEVENLABS_TTS_MODEL: env.ELEVENLABS_PHONE_TTS_MODEL ?? 'eleven_multilingual_v2',
   ELEVENLABS_VOICE_ID: env.ELEVENLABS_VOICE_ID,
 };
 
@@ -239,6 +240,23 @@ const HI = {
   notHeard: 'आवाज़ नहीं आई। कृपया दोबारा कोशिश करें।',
 };
 
+const BN: typeof HI = {
+  welcome: HI.welcome,
+  record: 'বিপের পরে রোগীর কথা বলুন। শেষ হলে হ্যাশ চাপুন।',
+  yesno: 'হ্যাঁ হলে 1, না হলে 2, জানা না থাকলে 9 চাপুন।',
+  options: (labels: string[]) => `${labels.map((l, i) => `${l} হলে ${i + 1}`).join(', ')}, জানা না থাকলে 9 চাপুন।`,
+  bp: 'উপরের সংখ্যা, তারপর স্টার, তারপর নিচের সংখ্যা, তারপর হ্যাশ চাপুন। মাপতে না পারলে 9 আর হ্যাশ চাপুন।',
+  emergency: 'এটি জরুরি অবস্থা। আর কোনো প্রশ্ন নয়।',
+  authorize: (f: string, km: number, urgent: boolean) => `${f}, ${km} কিলোমিটার, পাঠানোর পরামর্শ। ${urgent ? 'রেফারেল পাঠাতে আর অ্যাম্বুলেন্স ডাকতে' : 'রেফারেল পাঠাতে'} 1 চাপুন।`,
+  council: (n: number) => `রোগ নির্ণয় নিশ্চিত নয়। ${n} জন ডাক্তারের দলকে কেস পাঠাতে 1 চাপুন।`,
+  sent: 'রেফারেল পাঠানো হয়েছে। হোয়াটসঅ্যাপে আপডেট পাবেন। ধন্যবাদ।',
+  councilSent: 'কেস ডাক্তারদের পাঠানো হয়েছে। উত্তর এলে হোয়াটসঅ্যাপে জানানো হবে। ধন্যবাদ।',
+  sorry: 'দুঃখিত, বুঝতে পারিনি।',
+  notHeard: 'শুনতে পাইনি। আবার চেষ্টা করুন।',
+};
+/** Prompts in the language of the case (detected from the worker's voice note). */
+const P = (live: Live) => (live.agent.getState().lang === 'bn' ? BN : HI);
+
 function twiml(inner: string) {
   return `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
 }
@@ -248,23 +266,23 @@ async function nextVoiceStep(live: Live, prefix = ''): Promise<string> {
   const s = live.agent.getState();
   const k = encodeURIComponent(live.key);
   let pre = prefix ? await speech(prefix) : '';
-  if (s.stopReason === 'EMERGENCY_CRITERION_MET' && s.awaiting === 'AUTHORIZE_TRANSFER') pre += await speech(HI.emergency);
+  if (s.stopReason === 'EMERGENCY_CRITERION_MET' && s.awaiting === 'AUTHORIZE_TRANSFER') pre += await speech(P(live).emergency);
   if (s.awaiting === 'ANSWER' && s.pendingQuestion) {
     const q = s.pendingQuestion;
-    const ask = q.text.hi ?? q.text.en;
-    if (q.answer_type === 'bp') return twiml(`<Gather input="dtmf" finishOnKey="#" timeout="15" action="/twilio/voice/answer?k=${k}">${pre}${await speech(`${ask} ${HI.bp}`)}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
+    const ask = q.text[s.lang] ?? q.text.hi ?? q.text.en;
+    if (q.answer_type === 'bp') return twiml(`<Gather input="dtmf" finishOnKey="#" timeout="15" action="/twilio/voice/answer?k=${k}">${pre}${await speech(`${ask} ${P(live).bp}`)}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
     const yesNo = q.outcomes.length === 2 && /^yes$/i.test(q.outcomes[0].label);
-    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/answer?k=${k}">${pre}${await speech(`${ask} ${yesNo ? HI.yesno : HI.options(q.outcomes.map((o) => o.label))}`)}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
+    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/answer?k=${k}">${pre}${await speech(`${ask} ${yesNo ? P(live).yesno : P(live).options(q.outcomes.map((o) => o.label))}`)}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
   }
   if (s.awaiting === 'AUTHORIZE_TRANSFER') {
     const sel = s.facilitySearch!.candidates.find((c) => c.facility.id === s.facilitySearch!.selectedId)!;
     const urgent = !!s.triage && LEVEL_RANK[s.triage.level] >= LEVEL_RANK.URGENT;
-    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/authorize?k=${k}">${pre}${await speech(HI.authorize(sel.facility.name, sel.roadKm, urgent))}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
+    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/authorize?k=${k}">${pre}${await speech(P(live).authorize(sel.facility.name, sel.roadKm, urgent))}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
   }
   if (s.awaiting === 'AUTHORIZE_COUNCIL') {
-    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/authorize?k=${k}">${pre}${await speech(HI.council(s.council?.members.length ?? 2))}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
+    return twiml(`<Gather input="dtmf" numDigits="1" timeout="10" action="/twilio/voice/authorize?k=${k}">${pre}${await speech(P(live).council(s.council?.members.length ?? 2))}</Gather><Redirect>/twilio/voice/repeat?k=${k}</Redirect>`);
   }
-  return twiml(`${pre}${await speech(HI.sent)}<Hangup/>`);
+  return twiml(`${pre}${await speech(P(live).sent)}<Hangup/>`);
 }
 
 async function voice(path: string, p: Record<string, string>, q: URLSearchParams): Promise<string> {
@@ -292,11 +310,13 @@ async function voice(path: string, p: Record<string, string>, q: URLSearchParams
         const rec = await fetch(`${p.RecordingUrl}.mp3`, { headers: { authorization: 'Basic ' + Buffer.from(`${SID}:${TOKEN}`).toString('base64') } });
         blob = new Blob([new Uint8Array(await rec.arrayBuffer())], { type: 'audio/mpeg' });
       }
-      text = (await transcribe(VOICE_ENV, blob, 'hi')).text;
+      const t = await transcribe(VOICE_ENV, blob); // auto-detect: Hindi, Bengali, English…
+      text = t.text;
+      if (t.language_code?.startsWith('ben') || t.language_code === 'bn') live.agent.setLang('bn');
     } catch (e) {
       console.error('[stt]', (e as Error).message);
     }
-    if (!text) return twiml(`${await speech(HI.notHeard)}${await speech(HI.record)}<Record maxLength="45" timeout="4" finishOnKey="#" playBeep="true" action="/twilio/voice/intake?k=${encodeURIComponent(key)}"/>`);
+    if (!text) return twiml(`${await speech(P(live).notHeard)}${await speech(P(live).record)}<Record maxLength="45" timeout="4" finishOnKey="#" playBeep="true" action="/twilio/voice/intake?k=${encodeURIComponent(key)}"/>`);
     await live.agent.submitIntake(text, 'phone call · ElevenLabs Scribe');
     return nextVoiceStep(live);
   }
@@ -310,7 +330,7 @@ async function voice(path: string, p: Record<string, string>, q: URLSearchParams
       else await live.agent.answer(qd.id, { bp: d.replace('*', '/') });
     } else if (d === '9') await live.agent.answer(qd.id, { unknown: true });
     else if (/^[1-9]$/.test(d) && Number(d) <= qd.outcomes.length) await live.agent.answer(qd.id, { outcome: Number(d) - 1 });
-    else return nextVoiceStep(live, HI.sorry);
+    else return nextVoiceStep(live, P(live).sorry);
     return nextVoiceStep(live);
   }
   if (path === '/twilio/voice/authorize') {
@@ -318,11 +338,11 @@ async function voice(path: string, p: Record<string, string>, q: URLSearchParams
     if (p.Digits !== '1') return nextVoiceStep(live);
     if (s.awaiting === 'AUTHORIZE_TRANSFER') {
       void live.agent.authorizeTransfer();
-      return twiml(`${await speech(HI.sent)}<Hangup/>`);
+      return twiml(`${await speech(P(live).sent)}<Hangup/>`);
     }
     if (s.awaiting === 'AUTHORIZE_COUNCIL') {
       void live.agent.authorizeCouncil();
-      return twiml(`${await speech(HI.councilSent)}<Hangup/>`);
+      return twiml(`${await speech(P(live).councilSent)}<Hangup/>`);
     }
   }
   if (path === '/twilio/voice/repeat') return nextVoiceStep(live);
@@ -487,10 +507,35 @@ const server = createServer(async (req, res) => {
     if (SANDBOX && url.pathname === '/sim/demo-recording' && req.method === 'POST') {
       // A Hindi voice note generated once with ElevenLabs, so rehearsals don't depend on a microphone.
       const sc = (url.searchParams.get('scenario') ?? 'maternal') as ScenarioDef['id'];
-      const text = SCENARIOS[sc].intake.hi ?? SCENARIOS[sc].intake.en;
-      const id = `demo-${sc}`;
+      const lang = url.searchParams.get('lang') ?? 'hi';
+      const text = SCENARIOS[sc].intake[lang] ?? SCENARIOS[sc].intake.hi ?? SCENARIOS[sc].intake.en;
+      const id = `demo-${sc}-${lang}`;
       if (!recordings.has(id)) recordings.set(id, { buf: Buffer.from(await synthesize({ ...VOICE_ENV, ELEVENLABS_TTS_MODEL: 'eleven_multilingual_v2' }, text)), type: 'audio/mpeg' });
-      return json(res, { url: `sim:${id}`, text });
+      return json(res, { url: `sim:${id}`, text, audio: `/sim/recording/${id}` });
+    }
+    // ---- voice for the website (keys stay on the server) ----
+    if (url.pathname === '/voice/health') return json(res, { elevenlabs: !!VOICE_ENV.ELEVENLABS_API_KEY });
+    if (url.pathname === '/voice/tts' && req.method === 'POST') {
+      const { text } = JSON.parse(await readBody(req)) as { text: string };
+      if (!text || text.length > 600) return json(res, { error: 'text required (≤600 chars)' }, 400);
+      await speech(text);
+      const buf = audio.get(createHash('sha1').update(text).digest('hex').slice(0, 16));
+      if (!buf) return json(res, { error: 'tts unavailable' }, 502);
+      res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': buf.length });
+      return res.end(buf);
+    }
+    if (url.pathname === '/voice/stt' && req.method === 'POST') {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      const lang = url.searchParams.get('lang') ?? undefined;
+      const blob = new Blob([new Uint8Array(Buffer.concat(chunks))], { type: String(req.headers['content-type'] ?? 'audio/webm') });
+      return json(res, await transcribe(VOICE_ENV, blob, lang));
+    }
+    if (url.pathname.startsWith('/sim/recording/') && req.method === 'GET') {
+      const r = recordings.get(decodeURIComponent(url.pathname.slice('/sim/recording/'.length)));
+      if (!r) return void res.writeHead(404).end();
+      res.writeHead(200, { 'content-type': r.type, 'content-length': r.buf.length });
+      return res.end(r.buf);
     }
     if (url.pathname === '/live/outbox') {
       const client = url.searchParams.get('client') ?? '';

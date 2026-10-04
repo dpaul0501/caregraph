@@ -300,3 +300,29 @@ describe('any case (no demo scenario): the agent chooses the pathway', () => {
     expect(s.asked).toHaveLength(0);
   });
 });
+
+describe('Bengali', () => {
+  it('extracts from a Bengali transcript with Bengali digits', () => {
+    const f = Object.fromEntries(extractCase(SCENARIOS.maternal.intake.bn, { source: 't', at: 0 }).facts.map((x) => [x.key, x]));
+    expect(f.pregnant.value).toBe(true);
+    expect(f.gestational_weeks.value).toBe(34);
+    expect(f.age_years.value).toBe(31);
+    expect(f.severe_headache.value).toBe(true);
+    expect(f.edema.value).toBe(true);
+  });
+});
+
+describe('number words from speech-to-text', () => {
+  it('reads Bengali number words exactly as ElevenLabs Scribe wrote them', () => {
+    const heard = 'একত্রিশ বছর বয়সী মহিলা চৌত্রিশ সপ্তাহের গর্ভবতী। সকাল থেকে খুব মাথা ব্যথা আর পা ফোলা।';
+    const f = Object.fromEntries(extractCase(heard, { source: 't', at: 0 }).facts.map((x) => [x.key, x]));
+    expect(f.age_years.value).toBe(31);
+    expect(f.gestational_weeks.value).toBe(34);
+    expect(f.severe_headache.value).toBe(true);
+  });
+  it('reads Hindi number words', () => {
+    const f = Object.fromEntries(extractCase('इकतीस साल की महिला, चौंतीस हफ़्ते की गर्भवती, तेज़ सिरदर्द', { source: 't', at: 0 }).facts.map((x) => [x.key, x]));
+    expect(f.age_years.value).toBe(31);
+    expect(f.gestational_weeks.value).toBe(34);
+  });
+});
