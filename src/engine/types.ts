@@ -119,7 +119,9 @@ export interface TriageResult {
 
 export interface QuestionScore {
   question: QuestionDef;
-  expectedGain: number; // expected increase in triage-level rank if asked
+  expectedGain: number; // total decision value = ruleGain + modelGain
+  ruleGain: number; // expected escalation in protocol triage level
+  modelGain: number; // expected-loss reduction from the validated risk model (value of information)
   outcomes: { label: string; prior: number; level: TriageLevel; action: string }[];
   priorReason?: string;
   excluded?: string;

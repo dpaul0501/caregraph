@@ -8,6 +8,9 @@ import { extractCase, parseBP } from './extract';
 import { searchFacilities, type CapabilityDef, type Facility, type FacilitySearch } from './facilities';
 import { convokeCouncil, type Council, type Expert } from './experts';
 import { assessClusters, KG, type ClusterAssessment } from './kg';
+import { assessRisk, priorCalibration, type Calibration, type RiskAssessment } from './reasoner';
+import { MODELS } from './models';
+import { factsIn } from './logic';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
 import { buildPacket, type DecisionPacket } from './summary';
 import { isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
@@ -109,6 +112,8 @@ export interface Session {
   councilVotes: { expertId: string; status: 'PENDING' | 'RESPONDED' | 'ASYNC' }[];
   consensus: string | null;
   clusters: ClusterAssessment[];
+  risk: RiskAssessment | null;
+  calibration: Calibration;
   forecast: null | { timeToCareMin: number; parts: string[]; riskModel: string };
   peerOpinions: PeerOpinion[];
   packet: DecisionPacket | null;
@@ -164,6 +169,8 @@ function freshSession(scenarioId: ScenarioDef['id'], lang: Lang, options: Sessio
     councilVotes: [],
     consensus: null,
     clusters: [],
+    risk: null,
+    calibration: priorCalibration(PACK.code),
     forecast: null,
     peerOpinions: [],
     packet: null,
@@ -472,6 +479,27 @@ export class CareGraphAgent {
       (cs) => `${cs.length} problem clusters · ${cs.map((c) => `${c.cluster.id}=${c.status}`).join(', ')} · ${KG._meta.version}`,
       { evidence: 'VERIFIED_CLINICAL' },
     );
+    s.risk = null;
+    const modelValue: Record<string, number> = {};
+    for (const m of MODELS[p.id] ?? []) {
+      const cfg = (PACK.risk_models as Record<string, { approved: boolean; threshold: number; action: string }>)[m.id];
+      if (!cfg?.approved) continue;
+      const r = await this.tool(
+        'score_risk',
+        `${m.id}, ${s.calibration.version}`,
+        () => assessRisk(m, s.facts, { calibration: s.calibration, threshold: cfg.threshold, thresholdAction: cfg.action }),
+        (r) =>
+          r.applicability === 'FALSE'
+            ? `${m.name}: patient outside validated population — not used`
+            : `${m.name} 48-h risk ${pct(r.missingRange[0])}–${pct(r.missingRange[1])}${r.applicability === 'UNKNOWN' ? ' (if hypertensive — population not yet established)' : ''} · ${r.position.toLowerCase()} ${pct(r.threshold)} threshold · ${r.latencyMs} ms`,
+        { evidence: 'VERIFIED_CLINICAL' },
+      );
+      if (r.applicability === 'FALSE') continue;
+      s.risk = r;
+      const termDeps = new Map(m.terms.map((t) => [t.id, t.when ? factsIn(t.when) : [t.fact!]]));
+      for (const q of p.questions)
+        modelValue[q.id] = Math.max(0, ...r.voi.filter((v) => termDeps.get(v.termId)!.some((f) => q.facts.includes(f))).map((v) => v.value));
+    }
     s.missing = missingInformation(p, s.facts, triage);
     await this.tool(
       'get_missing_information',
@@ -482,7 +510,7 @@ export class CareGraphAgent {
     const sel = await this.tool(
       'select_next_question',
       'case',
-      () => selectNextQuestion(p, s.facts, { asked: s.asked, equipment: s.worker.equipment }),
+      () => selectNextQuestion(p, s.facts, { asked: s.asked, equipment: s.worker.equipment, modelValue }),
       (r) =>
         r.chosen
           ? `ask ${r.chosen.question.id} (expected decision value ${r.chosen.expectedGain})`
@@ -679,6 +707,31 @@ export class CareGraphAgent {
     );
     await this.tool('get_facility_status', `${search.candidates.length} facilities`, () => null, () => `live status feed (simulated): acceptance, roster, freshness`, { evidence: 'SIMULATED_OPERATIONAL' });
     await this.tool('estimate_travel_time', `${s.patient.origin} → *`, () => null, () => 'road-network ETA (routing stub)', { evidence: 'SIMULATED_OPERATIONAL' });
+    // Post-triage use of the validated risk model: if the 48-h risk could exceed the
+    // approved threshold, prefer an ICU/HDU-capable facility among eligible ones.
+    let riskNote = '';
+    if (s.risk && s.risk.applicability === 'TRUE' && s.risk.position !== 'BELOW') {
+      const icu = search.candidates.find((c) => c.eligibility === 'ELIGIBLE' && c.facility.services.includes('icu'));
+      const current = search.candidates.find((c) => c.facility.id === search.selectedId);
+      if (icu && current) {
+        const already = icu.facility.id === current.facility.id;
+        if (!already) {
+          search.backupId = current.facility.id;
+          search.selectedId = icu.facility.id;
+          search.top = [icu.facility.id, ...search.top.filter((id) => id !== icu.facility.id)].slice(0, 3);
+        }
+        riskNote = already
+          ? ` ${s.risk.modelName} 48-h risk could reach ${pct(s.risk.missingRange[1])} (unknowns not asked); ${icu.facility.name} has ICU, so more questions would not change the destination.`
+          : ` ${s.risk.modelName} 48-h risk could reach ${pct(s.risk.missingRange[1])}; switched to ICU-capable ${icu.facility.name}.`;
+        this.audit({
+          actor: 'AGENT',
+          kind: 'DECISION',
+          title: already ? 'Risk model: ICU preference already satisfied — no further questions' : `Risk model: prefer ICU-capable ${icu.facility.name}`,
+          detail: `${s.risk.modelName} range ${pct(s.risk.missingRange[0])}–${pct(s.risk.missingRange[1])} vs threshold ${pct(s.risk.threshold)} (${(PACK.risk_models as Record<string, { basis: string }>)[s.risk.modelId].basis})`,
+          evidence: 'VERIFIED_CLINICAL',
+        });
+      }
+    }
     s.facilitySearch = search;
     const sel = search.candidates.find((c) => c.facility.id === search.selectedId);
     const nearest = search.candidates[0];
@@ -727,7 +780,7 @@ export class CareGraphAgent {
     this.say({
       role: 'agent',
       kind: 'info',
-      text: `Required: ${cap.label}.${nearestNote} Recommended: ${sel.facility.name} — ${sel.roadKm} km, ~${sel.etaMin} min, accepting. ${urgent ? 'Authorize referral request and 108 ambulance?' : 'Authorize referral appointment request?'}`,
+      text: `Required: ${cap.label}.${nearestNote} Recommended: ${sel.facility.name} — ${sel.roadKm} km, ~${sel.etaMin} min, accepting.${riskNote} ${urgent ? 'Authorize referral request and 108 ambulance?' : 'Authorize referral appointment request?'}`,
     });
     this.focus(
       'Human authorization required',
@@ -855,6 +908,10 @@ export class CareGraphAgent {
     if (f.hx_referral_incomplete?.value) hist.push('Previous referral not completed (transport barrier)');
     if (f.hx_prior_fractures?.value) hist.push(`Prior fractures (record): ${f.hx_prior_fractures.value}`);
     if (purpose === 'PEER_REVIEW') hist.push('Safeguarding screen: NOT ASSESSED');
+    if (s.risk && s.risk.applicability === 'TRUE') {
+      const unk = s.risk.terms.filter((t) => !t.known).map((t) => t.label.toLowerCase());
+      hist.push(`${s.risk.modelName} 48-h risk ${pct(s.risk.missingRange[0])}–${pct(s.risk.missingRange[1])}${unk.length ? ` (${unk.join(', ')} unknown)` : ''} · threshold ${pct(s.risk.threshold)}`);
+    }
     return buildPacket({
       purpose,
       ref: s.caseId,
@@ -873,6 +930,8 @@ export class CareGraphAgent {
 }
 
 class Cancelled extends Error {}
+
+const pct = (x: number) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
 
 const AMBULANCE_TO_PATIENT_MIN = 11;
 const HANDOFF_MIN = 3;

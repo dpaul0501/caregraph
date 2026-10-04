@@ -16,6 +16,11 @@ export const FACTS: Record<string, FactDef> = {
   convulsions: { label: 'Convulsions', type: 'boolean', group: 'presentation' },
   vaginal_bleeding: { label: 'Vaginal bleeding', type: 'boolean', group: 'presentation' },
   epigastric_pain: { label: 'Epigastric pain', type: 'boolean', group: 'presentation' },
+  chest_pain: { label: 'Chest pain', type: 'boolean', group: 'presentation' },
+  breathlessness: { label: 'Difficulty breathing', type: 'boolean', group: 'presentation' },
+  abdominal_pain: { label: 'Abdominal pain', type: 'boolean', group: 'presentation' },
+  multiparous: { label: 'Has given birth before', type: 'boolean', group: 'history' },
+  proteinuria_dipstick: { label: 'Urine dipstick protein (0–4+)', type: 'number', group: 'measurement' },
   sbp: { label: 'Systolic BP (now)', type: 'number', unit: 'mmHg', group: 'measurement' },
   dbp: { label: 'Diastolic BP (now)', type: 'number', unit: 'mmHg', group: 'measurement' },
 

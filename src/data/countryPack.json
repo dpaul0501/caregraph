@@ -111,5 +111,13 @@
     "URGENT": 15,
     "PRIORITY": 240,
     "ROUTINE": 1440
+  },
+  "risk_models": {
+    "minipiers_2014": {
+      "approved": true,
+      "threshold": 0.25,
+      "action": "High 48-h risk: prefer a facility with HDU/ICU and alert the receiving obstetrician",
+      "basis": "Published miniPIERS threshold (≥25%, LR+ 5.09)"
+    }
   }
 }

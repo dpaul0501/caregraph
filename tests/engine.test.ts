@@ -155,6 +155,17 @@ describe('maternal end-to-end (demo case A)', () => {
     expect(byId['chc-sonpur'].reason).toMatch(/obstetrician/);
     expect(byId['nh-shanti'].eligibility).toBe('UNCERTAIN');
     expect(s.packet?.unknowns.join(' ')).toMatch(/Visual disturbance: UNKNOWN/);
+    // Validated risk model: applies once BP establishes hypertension; dipstick unknown → range.
+    expect(s.risk?.applicability).toBe('TRUE');
+    expect(s.risk!.missingRange[0]).toBeCloseTo(0.058, 2);
+    // Bleeding/abdominal pain and chest pain/breathlessness were never asked (emergency stop),
+    // so the honest range includes them and crosses the 25% threshold.
+    expect(s.risk!.missingRange[1]).toBeGreaterThan(0.25);
+    expect(s.risk!.position).toBe('STRADDLES');
+    expect(s.packet?.lines.join(' ')).toMatch(/miniPIERS 48-h risk 5\.8%–/);
+    // The chosen hospital already has an ICU, so the agent does not delay her with more questions.
+    expect(s.audit.some((e) => /ICU preference already satisfied/.test(e.title))).toBe(true);
+    expect(s.ranking.find((q) => q.question.id === 'q_dipstick')?.excluded).toMatch(/urine dipstick/);
     expect(s.awaiting).toBe('AUTHORIZE_TRANSFER');
 
     await a.authorizeTransfer();

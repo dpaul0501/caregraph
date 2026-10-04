@@ -53,7 +53,7 @@ const ACTION_CHANGE_VALUE = 0.5;
 export function selectNextQuestion(
   protocol: Protocol,
   facts: Facts,
-  opts: { asked: string[]; equipment: string[] },
+  opts: { asked: string[]; equipment: string[]; modelValue?: Record<string, number> },
 ): { ranked: QuestionScore[]; chosen: QuestionScore | null; stopReason: StopReason | null } {
   const current = runTriage(protocol, facts);
   const curRank = LEVEL_RANK[current.level];
@@ -74,12 +74,14 @@ export function selectNextQuestion(
       const value = delta > 0 ? delta : delta === 0 && o.action !== current.action ? ACTION_CHANGE_VALUE : 0;
       return s + o.prior * value;
     }, 0);
+    const ruleGain = Math.round(expectedGain * 100) / 100;
+    const modelGain = Math.round((opts.modelValue?.[q.id] ?? 0) * 100) / 100;
     let excluded: string | undefined;
     if (q.facts.every((k) => isEstablished(facts, k))) excluded = 'already known';
     else if (opts.asked.includes(q.id)) excluded = 'asked — answer unavailable';
     else if (q.requires_equipment && !opts.equipment.includes(q.requires_equipment))
       excluded = `requires ${q.requires_equipment.replace('_', ' ')} (not in worker kit)`;
-    return { question: q, expectedGain: Math.round(expectedGain * 100) / 100, outcomes, priorReason: reason, excluded };
+    return { question: q, expectedGain: Math.round((ruleGain + modelGain) * 100) / 100, ruleGain, modelGain, outcomes, priorReason: reason, excluded };
   });
   ranked.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.expectedGain - a.expectedGain);
 

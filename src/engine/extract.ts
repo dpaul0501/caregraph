@@ -147,6 +147,9 @@ export function extractCase(raw: string, opts: { source: string; at: number; evi
   push(term(text, 'dizziness', /\bdizz(y|iness)\b|\blight-?headed/, 0.9));
   push(term(text, 'visual_disturbance', /\b(blurr?(?:ed|y) vision|vision (?:is )?(?:blurr?(?:ed|y)|problems?)|seeing (?:spots|flashes|stars)|can'?t see (?:properly|clearly))/, 0.9));
   push(term(text, 'convulsions', /\b(fits?|seizures?|convuls(?:ion|ions|ing)|jerking)\b/, 0.92));
+  push(term(text, 'chest_pain', /\bchest (?:pain|tightness)\b/, 0.9));
+  push(term(text, 'breathlessness', /\b(difficulty breathing|short(?:ness)? of breath|breathless(?:ness)?|can'?t breathe|trouble breathing)\b/, 0.9));
+  push(term(text, 'abdominal_pain', /\b(abdominal pain|stomach pain|belly pain|pain in (?:the|her) (?:abdomen|stomach|belly))\b/, 0.85));
   push(term(text, 'vaginal_bleeding', /\b(vaginal )?bleeding\b/, 0.85));
   push(term(text, 'epigastric_pain', /\b(upper (?:abdominal|stomach|belly) pain|epigastric pain|pain (?:in|below) (?:the )?(?:upper abdomen|ribs))/, 0.88));
 

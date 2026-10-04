@@ -1,23 +1,49 @@
 {
-  "_meta": { "source": "SYNTHETIC longitudinal records — no real patient data" },
+  "_meta": {
+    "source": "SYNTHETIC longitudinal records — no real patient data"
+  },
   "workers": {
     "asha-asha": {
-      "id": "asha-asha", "name": "Asha K.", "role": "ASHA (community health worker)",
-      "village": "Rampur", "origin": "rampur", "equipment": ["bp_monitor", "thermometer", "mobile_phone"],
-      "languages": ["hi", "en"]
+      "id": "asha-asha",
+      "name": "Asha K.",
+      "role": "ASHA (community health worker)",
+      "village": "Rampur",
+      "origin": "rampur",
+      "equipment": [
+        "bp_monitor",
+        "thermometer",
+        "mobile_phone"
+      ],
+      "languages": [
+        "hi",
+        "en"
+      ]
     },
     "asha-rekha": {
-      "id": "asha-rekha", "name": "Rekha S.", "role": "ASHA (community health worker)",
-      "village": "Dhanpur", "origin": "dhanpur", "equipment": ["thermometer", "mobile_phone"],
-      "languages": ["bn", "hi", "en"]
+      "id": "asha-rekha",
+      "name": "Rekha S.",
+      "role": "ASHA (community health worker)",
+      "village": "Dhanpur",
+      "origin": "dhanpur",
+      "equipment": [
+        "thermometer",
+        "mobile_phone"
+      ],
+      "languages": [
+        "bn",
+        "hi",
+        "en"
+      ]
     }
   },
   "patients": [
     {
       "id": "PT-0417",
       "display_name": "Sunita D. (synthetic)",
-      "age_years": 31, "sex": "F",
-      "village": "Rampur", "origin": "rampur",
+      "age_years": 31,
+      "sex": "F",
+      "village": "Rampur",
+      "origin": "rampur",
       "record_source": "Synthetic HMIS/RCH record",
       "summary": [
         "G2P1 · 33 wk 6 d by LMP",
@@ -29,23 +55,55 @@
         "Referral to CHC on 19 Sep not completed (transport)"
       ],
       "facts": {
-        "pregnant": { "value": true, "note": "Registered pregnancy" },
-        "gestational_weeks": { "value": 34, "note": "33 wk 6 d by LMP" },
-        "hx_gravida_para": { "value": "G2P1" },
-        "hx_gestational_htn": { "value": true, "note": "Diagnosed 30 wk, CHC Sonpur" },
-        "hx_last_bp": { "value": "151/98 (yesterday)", "note": "Past observation — NOT today's BP" },
-        "hx_last_sbp": { "value": 151 },
-        "hx_missed_anc": { "value": true, "note": "32-week visit missed" },
-        "hx_medication": { "value": "Labetalol 100 mg BD (adherence unknown)" },
-        "hx_allergies": { "value": "None known" },
-        "hx_referral_incomplete": { "value": true, "note": "19 Sep referral to CHC not completed — barrier: transport" }
+        "pregnant": {
+          "value": true,
+          "note": "Registered pregnancy"
+        },
+        "gestational_weeks": {
+          "value": 34,
+          "note": "33 wk 6 d by LMP"
+        },
+        "hx_gravida_para": {
+          "value": "G2P1"
+        },
+        "hx_gestational_htn": {
+          "value": true,
+          "note": "Diagnosed 30 wk, CHC Sonpur"
+        },
+        "hx_last_bp": {
+          "value": "151/98 (yesterday)",
+          "note": "Past observation — NOT today's BP"
+        },
+        "hx_last_sbp": {
+          "value": 151
+        },
+        "hx_missed_anc": {
+          "value": true,
+          "note": "32-week visit missed"
+        },
+        "hx_medication": {
+          "value": "Labetalol 100 mg BD (adherence unknown)"
+        },
+        "hx_allergies": {
+          "value": "None known"
+        },
+        "hx_referral_incomplete": {
+          "value": true,
+          "note": "19 Sep referral to CHC not completed — barrier: transport"
+        },
+        "multiparous": {
+          "value": true,
+          "note": "G2P1 on record"
+        }
       }
     },
     {
       "id": "PT-0882",
       "display_name": "Rohan M. (synthetic)",
-      "age_years": 8, "sex": "M",
-      "village": "Dhanpur", "origin": "dhanpur",
+      "age_years": 8,
+      "sex": "M",
+      "village": "Dhanpur",
+      "origin": "dhanpur",
       "record_source": "Synthetic RBSK child-health record",
       "summary": [
         "Forearm fracture (age 6) — PHC Dhanpur",
@@ -55,8 +113,12 @@
         "No known allergies"
       ],
       "facts": {
-        "hx_prior_fractures": { "value": "Forearm (age 6); tibia (Feb 2026)" },
-        "hx_allergies": { "value": "None known" }
+        "hx_prior_fractures": {
+          "value": "Forearm (age 6); tibia (Feb 2026)"
+        },
+        "hx_allergies": {
+          "value": "None known"
+        }
       }
     }
   ]

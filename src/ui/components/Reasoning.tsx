@@ -102,7 +102,7 @@ function deriveStages(s: Session): Stage[] {
       summary: !t
         ? 'Deterministic rules (WHO baseline + country pack)'
         : stopped
-          ? `${t.level}${firstRule ? ` · rule ${firstRule.id} ${firstRule.title.toLowerCase()}` : ''} · ${s.asked.length} question${s.asked.length === 1 ? '' : 's'} asked`
+          ? `${t.level}${firstRule ? ` · rule ${firstRule.id}` : ''} · ${s.asked.length} question${s.asked.length === 1 ? '' : 's'} asked${s.risk && s.risk.applicability === 'TRUE' ? ` · ${s.risk.modelName} risk ${riskPct(s.risk.missingRange[0])}–${riskPct(s.risk.missingRange[1])}` : ''}`
           : `Currently ${t.level} · asking the question most likely to change the action`,
       body: <TriageBody />,
     },
@@ -165,6 +165,7 @@ function deriveStages(s: Session): Stage[] {
   ];
 }
 
+const riskPct = (x: number) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
 const dim = (s: Session, k: string) => s.uncertainty.find((d) => d.key === k)?.level.toLowerCase() ?? '—';
 
 const STATUS_TEXT: Record<ClusterAssessment['status'], string> = {
@@ -345,6 +346,7 @@ function TriageBody() {
       ) : (
         <div className="text-slate-600">No rule met yet — {t.undetermined.length} rule(s) depend on unknown facts.</div>
       )}
+      <RiskCard />
       {s.stopReason ? (
         <div className={cx('rounded-lg px-2.5 py-1.5 font-semibold', s.stopReason === 'EMERGENCY_CRITERION_MET' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700')}>
           {s.stopReason === 'EMERGENCY_CRITERION_MET'
@@ -369,6 +371,92 @@ function TriageBody() {
       <div className="text-[10.5px] text-muted">
         {s.protocol.id} v{s.protocol.version} · {PACK.name} v{PACK.version} · {s.protocol.validation}
       </div>
+    </div>
+  );
+}
+
+const pct = (x: number) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+
+function RiskCard() {
+  const { s } = useAgent();
+  const r = s.risk;
+  if (!r) return null;
+  const max = Math.max(0.6, r.missingRange[1] * 1.1);
+  const x = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
+  const sel = s.facilitySearch?.candidates.find((c) => c.facility.id === s.facilitySearch?.selectedId);
+  const unknown = r.terms.filter((t) => !t.known);
+  const known = r.terms.filter((t) => t.known && t.contribution !== 0);
+  const consequence =
+    r.applicability !== 'TRUE'
+      ? `Applies only to: ${r.populationLabel}. Not yet established for this patient — shown as "if hypertensive".`
+      : r.position === 'BELOW'
+        ? 'Below the threshold for every possible value of the unknowns → no question can change this decision.'
+        : sel?.facility.services.includes('icu')
+          ? `Could exceed ${pct(r.threshold)} → ICU-capable care preferred. ${sel.facility.name} has ICU, so asking more would not change the destination.`
+          : r.position === 'ABOVE'
+            ? `Above ${pct(r.threshold)} for every value of the unknowns → ${r.thresholdAction.toLowerCase()}.`
+            : `Range crosses ${pct(r.threshold)} → the most valuable question: ${r.voi[0]?.label.toLowerCase()}.`;
+  return (
+    <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="font-bold">
+          {r.modelName}: {r.outcome.toLowerCase()}
+        </div>
+        <span className={cx('shrink-0 rounded px-1.5 py-px text-[9.5px] font-bold', r.applicability === 'TRUE' ? 'bg-indigo-600 text-white' : 'bg-amber-200 text-amber-900')}>
+          {r.applicability === 'TRUE' ? 'VALIDATED MODEL APPLIES' : 'APPLICABILITY UNKNOWN'}
+        </span>
+      </div>
+      <div className="mt-0.5 text-[10.5px] text-slate-600">
+        Published model (PLoS Med 2014) · external AUC 0.713 · coefficients unchanged · calibration {r.calibration.version} ({r.calibration.n} local outcomes)
+      </div>
+
+      <div className="relative mt-3 h-7">
+        <div className="absolute inset-x-0 top-2.5 h-2 rounded-full bg-slate-200" />
+        <div className="absolute top-1.5 h-4 rounded-full bg-indigo-400/70" style={{ left: x(r.missingRange[0]), width: `calc(${x(r.missingRange[1])} - ${x(r.missingRange[0])})` }} title="Range from unknown inputs" />
+        <div className="absolute top-0 h-7 w-0.5 bg-red-600" style={{ left: x(r.threshold) }} />
+        <div className="absolute -top-0.5 text-[9.5px] font-bold text-red-700" style={{ left: `calc(${x(r.threshold)} + 4px)` }}>
+          {pct(r.threshold)} threshold
+        </div>
+        <div className="absolute top-1 h-5 w-1 rounded bg-indigo-900" style={{ left: x(r.expected) }} title="Expected risk" />
+      </div>
+      <div className="flex justify-between text-[10.5px] text-slate-600">
+        <span>
+          Range <b className="text-ink">{pct(r.missingRange[0])}–{pct(r.missingRange[1])}</b> · expected {pct(r.expected)}
+        </span>
+        <span>
+          model uncertainty ±{pct((r.modelInterval[1] - r.modelInterval[0]) / 2)} · {r.latencyMs} ms
+        </span>
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">Known — contribution</div>
+          {known.map((t) => (
+            <div key={t.id} className="flex justify-between text-[11.5px]">
+              <span>
+                {t.label}: {t.valueLabel}
+              </span>
+              <span className={cx('font-mono', (t.contribution ?? 0) > 0 ? 'text-red-700' : 'text-emerald-700')}>
+                {(t.contribution ?? 0) > 0 ? '+' : ''}
+                {(t.contribution ?? 0).toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">Unknown — why it's a range</div>
+          {unknown.map((t) => (
+            <div key={t.id} className="flex justify-between text-[11.5px]">
+              <span className="unknown-hatch rounded px-1">{t.label}</span>
+              <span className="font-mono text-slate-600">
+                {t.range[0].toFixed(2)}…{t.range[1] > 0 ? '+' : ''}
+                {t.range[1].toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-2 rounded bg-white px-2 py-1 text-[11.5px] font-semibold text-slate-800">{consequence}</div>
     </div>
   );
 }

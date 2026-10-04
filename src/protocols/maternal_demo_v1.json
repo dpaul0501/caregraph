@@ -9,23 +9,53 @@
     "WHO recommendations for prevention and treatment of pre-eclampsia and eclampsia (2011)",
     "WHO recommendations on antenatal care for a positive pregnancy experience (2016)"
   ],
-  "applies_when": { "fact": "pregnant", "eq": true },
+  "applies_when": {
+    "fact": "pregnant",
+    "eq": true
+  },
   "default_level": "ROUTINE",
   "default_action": "Continue routine antenatal care",
   "default_capability": null,
   "decision_facts": [
-    "pregnant", "gestational_weeks", "severe_headache", "edema", "visual_disturbance",
-    "convulsions", "vaginal_bleeding", "epigastric_pain", "sbp", "dbp"
+    "pregnant",
+    "gestational_weeks",
+    "severe_headache",
+    "edema",
+    "visual_disturbance",
+    "convulsions",
+    "vaginal_bleeding",
+    "epigastric_pain",
+    "sbp",
+    "dbp"
   ],
   "rules": [
     {
       "id": "M-01",
       "title": "Severe hypertension in pregnancy ≥20 weeks",
-      "when": { "all": [
-        { "fact": "pregnant", "eq": true },
-        { "fact": "gestational_weeks", "gte": 20 },
-        { "any": [ { "fact": "sbp", "gte": 160 }, { "fact": "dbp", "gte": 110 } ] }
-      ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "gestational_weeks",
+            "gte": 20
+          },
+          {
+            "any": [
+              {
+                "fact": "sbp",
+                "gte": 160
+              },
+              {
+                "fact": "dbp",
+                "gte": 110
+              }
+            ]
+          }
+        ]
+      },
       "level": "EMERGENCY",
       "action": "Emergency referral to comprehensive emergency obstetric care",
       "required_capability": "cemonc",
@@ -38,7 +68,18 @@
     {
       "id": "M-02",
       "title": "Convulsions in pregnancy",
-      "when": { "all": [ { "fact": "pregnant", "eq": true }, { "fact": "convulsions", "eq": true } ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "convulsions",
+            "eq": true
+          }
+        ]
+      },
       "level": "EMERGENCY",
       "action": "Emergency referral to comprehensive emergency obstetric care",
       "required_capability": "cemonc",
@@ -51,7 +92,18 @@
     {
       "id": "M-03",
       "title": "Heavy vaginal bleeding in pregnancy",
-      "when": { "all": [ { "fact": "pregnant", "eq": true }, { "fact": "vaginal_bleeding", "eq": true } ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "vaginal_bleeding",
+            "eq": true
+          }
+        ]
+      },
       "level": "EMERGENCY",
       "action": "Emergency referral to comprehensive emergency obstetric care",
       "required_capability": "cemonc",
@@ -64,12 +116,46 @@
     {
       "id": "M-04",
       "title": "Hypertension with severe features",
-      "when": { "all": [
-        { "fact": "pregnant", "eq": true },
-        { "fact": "gestational_weeks", "gte": 20 },
-        { "any": [ { "fact": "sbp", "gte": 140 }, { "fact": "dbp", "gte": 90 } ] },
-        { "any": [ { "fact": "severe_headache", "eq": true }, { "fact": "visual_disturbance", "eq": true }, { "fact": "epigastric_pain", "eq": true } ] }
-      ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "gestational_weeks",
+            "gte": 20
+          },
+          {
+            "any": [
+              {
+                "fact": "sbp",
+                "gte": 140
+              },
+              {
+                "fact": "dbp",
+                "gte": 90
+              }
+            ]
+          },
+          {
+            "any": [
+              {
+                "fact": "severe_headache",
+                "eq": true
+              },
+              {
+                "fact": "visual_disturbance",
+                "eq": true
+              },
+              {
+                "fact": "epigastric_pain",
+                "eq": true
+              }
+            ]
+          }
+        ]
+      },
       "level": "URGENT",
       "action": "Urgent referral (same hour) to comprehensive emergency obstetric care",
       "required_capability": "cemonc",
@@ -82,11 +168,30 @@
     {
       "id": "M-05",
       "title": "Hypertension in pregnancy without danger signs",
-      "when": { "all": [
-        { "fact": "pregnant", "eq": true },
-        { "fact": "gestational_weeks", "gte": 20 },
-        { "any": [ { "fact": "sbp", "gte": 140 }, { "fact": "dbp", "gte": 90 } ] }
-      ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "gestational_weeks",
+            "gte": 20
+          },
+          {
+            "any": [
+              {
+                "fact": "sbp",
+                "gte": 140
+              },
+              {
+                "fact": "dbp",
+                "gte": 90
+              }
+            ]
+          }
+        ]
+      },
       "level": "PRIORITY",
       "action": "Same-day antenatal BP review at PHC",
       "required_capability": "bp_review",
@@ -99,10 +204,26 @@
     {
       "id": "M-06",
       "title": "Danger sign reported in pregnancy",
-      "when": { "all": [
-        { "fact": "pregnant", "eq": true },
-        { "any": [ { "fact": "severe_headache", "eq": true }, { "fact": "visual_disturbance", "eq": true } ] }
-      ] },
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "severe_headache",
+                "eq": true
+              },
+              {
+                "fact": "visual_disturbance",
+                "eq": true
+              }
+            ]
+          }
+        ]
+      },
       "level": "PRIORITY",
       "action": "Same-day assessment; measure BP now",
       "required_capability": "bp_review",
@@ -116,7 +237,10 @@
   "questions": [
     {
       "id": "q_bp",
-      "facts": ["sbp", "dbp"],
+      "facts": [
+        "sbp",
+        "dbp"
+      ],
       "text": {
         "en": "Can you measure her blood pressure now?",
         "hi": "क्या आप अभी उनका ब्लड प्रेशर नाप सकती हैं?",
@@ -126,21 +250,51 @@
       "requires_equipment": "bp_monitor",
       "time_cost_min": 2,
       "outcomes": [
-        { "label": "<140/90", "values": { "sbp": 118, "dbp": 76 }, "prior": 0.6 },
-        { "label": "140–159 / 90–109", "values": { "sbp": 150, "dbp": 98 }, "prior": 0.3 },
-        { "label": "≥160 or ≥110", "values": { "sbp": 166, "dbp": 108 }, "prior": 0.1 }
+        {
+          "label": "<140/90",
+          "values": {
+            "sbp": 118,
+            "dbp": 76
+          },
+          "prior": 0.6
+        },
+        {
+          "label": "140–159 / 90–109",
+          "values": {
+            "sbp": 150,
+            "dbp": 98
+          },
+          "prior": 0.3
+        },
+        {
+          "label": "≥160 or ≥110",
+          "values": {
+            "sbp": 166,
+            "dbp": 108
+          },
+          "prior": 0.1
+        }
       ],
       "prior_modifiers": [
         {
-          "when": { "fact": "hx_gestational_htn", "eq": true },
-          "priors": [0.15, 0.5, 0.35],
+          "when": {
+            "fact": "hx_gestational_htn",
+            "eq": true
+          },
+          "priors": [
+            0.15,
+            0.5,
+            0.35
+          ],
           "reason": "Record: gestational hypertension; last BP 151/98 yesterday"
         }
       ]
     },
     {
       "id": "q_convulsions",
-      "facts": ["convulsions"],
+      "facts": [
+        "convulsions"
+      ],
       "text": {
         "en": "Has she had any fits or convulsions?",
         "hi": "क्या उन्हें कोई दौरा या झटके आए हैं?",
@@ -149,13 +303,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "convulsions": true }, "prior": 0.02 },
-        { "label": "No", "values": { "convulsions": false }, "prior": 0.98 }
+        {
+          "label": "Yes",
+          "values": {
+            "convulsions": true
+          },
+          "prior": 0.02
+        },
+        {
+          "label": "No",
+          "values": {
+            "convulsions": false
+          },
+          "prior": 0.98
+        }
       ]
     },
     {
       "id": "q_bleeding",
-      "facts": ["vaginal_bleeding"],
+      "facts": [
+        "vaginal_bleeding"
+      ],
       "text": {
         "en": "Is she having any vaginal bleeding?",
         "hi": "क्या उन्हें योनि से खून आ रहा है?",
@@ -164,13 +332,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "vaginal_bleeding": true }, "prior": 0.03 },
-        { "label": "No", "values": { "vaginal_bleeding": false }, "prior": 0.97 }
+        {
+          "label": "Yes",
+          "values": {
+            "vaginal_bleeding": true
+          },
+          "prior": 0.03
+        },
+        {
+          "label": "No",
+          "values": {
+            "vaginal_bleeding": false
+          },
+          "prior": 0.97
+        }
       ]
     },
     {
       "id": "q_visual",
-      "facts": ["visual_disturbance"],
+      "facts": [
+        "visual_disturbance"
+      ],
       "text": {
         "en": "Is her vision blurred, or is she seeing spots or flashes?",
         "hi": "क्या उन्हें धुंधला दिख रहा है या आँखों के आगे चमक/धब्बे दिख रहे हैं?",
@@ -179,13 +361,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "visual_disturbance": true }, "prior": 0.25 },
-        { "label": "No", "values": { "visual_disturbance": false }, "prior": 0.75 }
+        {
+          "label": "Yes",
+          "values": {
+            "visual_disturbance": true
+          },
+          "prior": 0.25
+        },
+        {
+          "label": "No",
+          "values": {
+            "visual_disturbance": false
+          },
+          "prior": 0.75
+        }
       ]
     },
     {
       "id": "q_epigastric",
-      "facts": ["epigastric_pain"],
+      "facts": [
+        "epigastric_pain"
+      ],
       "text": {
         "en": "Does she have pain in the upper abdomen, below the ribs?",
         "hi": "क्या उन्हें पेट के ऊपरी हिस्से में, पसलियों के नीचे दर्द है?",
@@ -194,8 +390,82 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "epigastric_pain": true }, "prior": 0.15 },
-        { "label": "No", "values": { "epigastric_pain": false }, "prior": 0.85 }
+        {
+          "label": "Yes",
+          "values": {
+            "epigastric_pain": true
+          },
+          "prior": 0.15
+        },
+        {
+          "label": "No",
+          "values": {
+            "epigastric_pain": false
+          },
+          "prior": 0.85
+        }
+      ]
+    },
+    {
+      "id": "q_chest",
+      "facts": [
+        "chest_pain",
+        "breathlessness"
+      ],
+      "text": {
+        "en": "Does she have chest pain or difficulty breathing?",
+        "hi": "क्या उन्हें सीने में दर्द या साँस लेने में तकलीफ़ है?",
+        "bn": "ওনার কি বুকে ব্যথা বা শ্বাসকষ্ট হচ্ছে?"
+      },
+      "answer_type": "yesno",
+      "time_cost_min": 0.5,
+      "outcomes": [
+        {
+          "label": "Yes",
+          "values": {
+            "chest_pain": true,
+            "breathlessness": true
+          },
+          "prior": 0.06
+        },
+        {
+          "label": "No",
+          "values": {
+            "chest_pain": false,
+            "breathlessness": false
+          },
+          "prior": 0.94
+        }
+      ]
+    },
+    {
+      "id": "q_dipstick",
+      "facts": [
+        "proteinuria_dipstick"
+      ],
+      "text": {
+        "en": "Can you test her urine with a dipstick for protein?",
+        "hi": "क्या आप डिपस्टिक से उनके पेशाब में प्रोटीन जाँच सकती हैं?",
+        "bn": "আপনি কি ডিপস্টিক দিয়ে ওনার প্রস্রাবে প্রোটিন পরীক্ষা করতে পারবেন?"
+      },
+      "answer_type": "yesno",
+      "requires_equipment": "urine_dipstick",
+      "time_cost_min": 3,
+      "outcomes": [
+        {
+          "label": "Neg–1+",
+          "values": {
+            "proteinuria_dipstick": 1
+          },
+          "prior": 0.65
+        },
+        {
+          "label": "2+ or more",
+          "values": {
+            "proteinuria_dipstick": 3
+          },
+          "prior": 0.35
+        }
       ]
     }
   ]
