@@ -12,7 +12,7 @@ export const SITE = {
   /** YouTube/Loom *embed* URL for the 2-minute demo video. */
   demoVideoUrl: '', // {{DEMO_VIDEO_URL}}
   /** Live telephony server (tunnel or host). Also settable per browser with ?tel=… */
-  telephonyUrl: '', // {{TELEPHONY_URL}}
+  telephonyUrl: 'https://caregraph-9b06.onrender.com',
   githubUrl: 'https://github.com/dpaul0501/caregraph',
   team: [] as { name: string; role: string }[], // {{TEAM}} e.g. [{ name: 'D. Paul', role: 'AI & engineering' }]
 };

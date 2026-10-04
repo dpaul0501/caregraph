@@ -15,9 +15,25 @@ function resolveTelephonyUrl(): string {
   } catch {
     /* storage unavailable */
   }
-  return SITE.telephonyUrl || ((import.meta.env.VITE_TELEPHONY_URL as string | undefined) ?? '/tel');
+  if (import.meta.env.DEV) return '/tel';
+  return (import.meta.env.VITE_TELEPHONY_URL as string | undefined) || SITE.telephonyUrl || '/tel';
 }
 export const TEL = resolveTelephonyUrl();
+
+/** One id per browser tab: every visitor gets their own sessions on the shared server. */
+export const CLIENT_ID: string = (() => {
+  try {
+    const k = 'caregraph.client';
+    const v = sessionStorage.getItem(k) ?? `c${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(k, v);
+    return v;
+  } catch {
+    return `c${Math.random().toString(36).slice(2, 10)}`;
+  }
+})();
+
+/** Emulated worker phone number, unique per visitor (sessions are keyed by phone). */
+export const WORKER_PHONE = `+9199${(parseInt(CLIENT_ID.slice(1), 36) % 1e8).toString().padStart(8, '0')}`;
 
 export interface OutboxItem {
   id: number;
@@ -46,7 +62,7 @@ export class RemoteAgent {
 
   connect() {
     if (this.es) return;
-    this.es = new EventSource(`${TEL}/live/events`);
+    this.es = new EventSource(`${TEL}/live/events?client=${CLIENT_ID}`);
     this.es.onopen = () => {
       this.connected = true;
       this.emit();
@@ -68,7 +84,7 @@ export class RemoteAgent {
       this.outbox = [...this.outbox, JSON.parse((e as MessageEvent).data) as OutboxItem];
       this.emit();
     });
-    fetch(`${TEL}/live/outbox`)
+    fetch(`${TEL}/live/outbox?client=${CLIENT_ID}`)
       .then((r) => r.json())
       .then((items: OutboxItem[]) => {
         this.outbox = items;
@@ -95,7 +111,7 @@ export class RemoteAgent {
   }
 
   private act(method: string, ...args: unknown[]) {
-    return fetch(`${TEL}/live/action`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method, args }) }).then(() => undefined);
+    return fetch(`${TEL}/live/action`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method, args, client: CLIENT_ID }) }).then(() => undefined);
   }
   answer = (...a: unknown[]) => this.act('answer', ...a);
   authorizeTransfer = () => this.act('authorizeTransfer');
@@ -105,14 +121,16 @@ export class RemoteAgent {
   setLang = (l: string) => this.act('setLang', l);
   setOption = (k: string, v: unknown) => this.act('setOption', k, v);
   demoAnswer = () => Promise.resolve();
-  reset = () => {
-    void fetch(`${TEL}/live/reset`, { method: 'POST' });
+  /** Start a fresh case on the server for this visitor (scenario 'open' = any case). */
+  reset = async (scenario: string = 'open') => {
+    await fetch(`${TEL}/live/reset`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client: CLIENT_ID }) }).catch(() => {});
+    await fetch(`${TEL}/live/start`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client: CLIENT_ID, scenario }) });
   };
 }
 
 /** Post exactly what Twilio would post, to the sandbox simulator. Returns TwiML. */
 export async function simTwilio(path: string, params: Record<string, string>, query = ''): Promise<string> {
-  const r = await fetch(`${TEL}/sim/twilio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, params, query }) });
+  const r = await fetch(`${TEL}/sim/twilio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, params, query, client: CLIENT_ID }) });
   return r.text();
 }
 

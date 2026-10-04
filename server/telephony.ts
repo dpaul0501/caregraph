@@ -17,6 +17,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { CareGraphAgent, PACK } from '../src/engine/orchestrator.ts';
 import { SCENARIOS, type CouncilChoice, type ScenarioDef } from '../src/data/scenarios.ts';
@@ -57,28 +58,38 @@ const VOICE_ENV = {
 };
 
 // ------------------------------------------------------------------ sessions
-type Channel = 'voice' | 'whatsapp' | 'sms';
+type Channel = 'voice' | 'whatsapp' | 'sms' | 'web';
 interface Live {
   key: string;
   channel: Channel;
   phone: string;
   agent: CareGraphAgent;
   startedAt: number;
+  /** Browser client that created it (each visitor gets their own sessions); none for real Twilio traffic. */
+  owner?: string;
 }
 const sessions = new Map<string, Live>();
-let current: Live | null = null; // the case the dashboard follows
+let current: Live | null = null; // latest real (Twilio) case — followed by dashboards watching live calls
+const follow = new Map<string, string>(); // client id → session key it follows
+const ctx = new AsyncLocalStorage<{ client?: string }>();
 
 function newSession(key: string, channel: Channel, phone: string, scenario: ScenarioDef['id']): Live {
+  const owner = ctx.getStore()?.client;
+  // Forget visitor sessions after two hours (judges' trials must not accumulate in memory).
+  for (const [k, l] of sessions) if (l.owner && Date.now() - l.startedAt > 2 * 3600_000) sessions.delete(k);
   const agent = new CareGraphAgent(scenario, 'hi');
   agent.speed = 0.25; // keep simulated transport visible but quick
+  // Web cases have no hospital/doctor phones on screen: their counterpart replies are automatic.
+  const humans = channel !== 'web';
   agent.integrations = {
-    requestAcceptance: HOSPITAL ? (r) => askHuman(HOSPITAL, 'hospital', r.packetText + '\n\nReply 1 = ACCEPT · 2 = CANNOT ACCEPT', r.timeoutMs).then((ans) => (ans ? acceptanceFrom(ans, r.facilityName) : null)) : undefined,
-    requestPeerOpinion: DOCTOR ? (r) => askHuman(DOCTOR, 'doctor', r.packetText + '\n\nReply 1 = AGREE + REFER · 2 = ASK ANOTHER QUESTION · 3 = MANAGE LOCALLY (add a note after the number)', r.timeoutMs).then((ans) => (ans ? opinionFrom(ans) : null)) : undefined,
-    notifyWorker: (text) => notify(channel === 'sms' ? 'sms' : 'whatsapp', phone, text),
+    requestAcceptance: HOSPITAL && humans ? (r) => askHuman(HOSPITAL, 'hospital', r.packetText + '\n\nReply 1 = ACCEPT · 2 = CANNOT ACCEPT', r.timeoutMs, owner).then((ans) => (ans ? acceptanceFrom(ans, r.facilityName) : null)) : undefined,
+    requestPeerOpinion: DOCTOR && humans ? (r) => askHuman(DOCTOR, 'doctor', r.packetText + '\n\nReply 1 = AGREE + REFER · 2 = ASK ANOTHER QUESTION · 3 = MANAGE LOCALLY (add a note after the number)', r.timeoutMs, owner).then((ans) => (ans ? opinionFrom(ans) : null)) : undefined,
+    notifyWorker: (text) => (phone ? notify(channel === 'sms' ? 'sms' : 'whatsapp', phone, text, owner) : undefined),
   };
-  const live = { key, channel, phone, agent, startedAt: Date.now() };
+  const live: Live = { key, channel, phone, agent, startedAt: Date.now(), owner };
   sessions.set(key, live);
-  current = live;
+  if (owner) follow.set(owner, key);
+  else current = live;
   agent.subscribe(() => broadcast(live));
   broadcast(live);
   return live;
@@ -87,22 +98,23 @@ function newSession(key: string, channel: Channel, phone: string, scenario: Scen
 // ------------------------------------------------------------------ humans on WhatsApp
 const waiting = new Map<string, { resolve: (text: string | null) => void; role: string }>();
 
-function askHuman(phone: string, role: string, body: string, timeoutMs: number): Promise<string | null> {
+function askHuman(phone: string, role: string, body: string, timeoutMs: number, owner?: string): Promise<string | null> {
+  const wkey = `${phone}|${owner ?? ''}`;
   return new Promise((resolve) => {
-    waiting.get(phone)?.resolve(null);
+    waiting.get(wkey)?.resolve(null);
     const timer = setTimeout(() => {
-      waiting.delete(phone);
+      waiting.delete(wkey);
       resolve(null);
     }, timeoutMs);
-    waiting.set(phone, {
+    waiting.set(wkey, {
       role,
       resolve: (t) => {
         clearTimeout(timer);
-        waiting.delete(phone);
+        waiting.delete(wkey);
         resolve(t);
       },
     });
-    notify('whatsapp', phone, body).catch((e) => console.error('[askHuman]', e.message));
+    notify('whatsapp', phone, body, owner).catch((e) => console.error('[askHuman]', e.message));
   });
 }
 
@@ -131,18 +143,20 @@ interface OutboxItem {
   channel: 'whatsapp' | 'sms' | 'call';
   to: string;
   body: string;
+  owner?: string;
 }
 const outbox: OutboxItem[] = [];
 let outboxSeq = 0;
-function toOutbox(channel: OutboxItem['channel'], to: string, body: string) {
-  const item = { id: ++outboxSeq, at: Date.now(), channel, to, body };
+function toOutbox(channel: OutboxItem['channel'], to: string, body: string, owner?: string) {
+  const item: OutboxItem = { id: ++outboxSeq, at: Date.now(), channel, to, body, owner };
   outbox.push(item);
+  if (outbox.length > 2000) outbox.splice(0, outbox.length - 2000);
   const payload = `event: outbox\ndata: ${JSON.stringify(item)}\n\n`;
-  for (const c of clients) c.write(payload);
+  for (const [c, id] of clients) if (!owner || id === owner) c.write(payload);
 }
 
-async function notify(channel: 'whatsapp' | 'sms', to: string, body: string) {
-  if (SANDBOX) return toOutbox(channel, to, body);
+async function notify(channel: 'whatsapp' | 'sms', to: string, body: string, owner?: string) {
+  if (SANDBOX || owner) return toOutbox(channel, to, body, owner);
   if (!SID || !TOKEN) return console.log(`[notify:${channel} → ${to}] ${body}`);
   const from = channel === 'whatsapp' ? WA_FROM : SMS_FROM;
   const toAddr = channel === 'whatsapp' ? `whatsapp:${to}` : to;
@@ -157,7 +171,7 @@ async function notify(channel: 'whatsapp' | 'sms', to: string, body: string) {
 /** Outbound call that runs the IVR (callback pattern: worker spends no airtime). */
 async function placeCall(to: string): Promise<{ ok: boolean; detail: string }> {
   if (SANDBOX) {
-    toOutbox('call', to, 'Incoming call from CareGraph');
+    toOutbox('call', to, 'Incoming call from CareGraph', ctx.getStore()?.client);
     return { ok: true, detail: 'sandbox call' };
   }
   if (!SID || !TOKEN || !SMS_FROM || !env.PUBLIC_URL) return { ok: false, detail: 'Twilio number or PUBLIC_URL not configured' };
@@ -319,7 +333,7 @@ async function voice(path: string, p: Record<string, string>, q: URLSearchParams
 async function message(channel: 'whatsapp' | 'sms', p: Record<string, string>): Promise<string> {
   const from = norm(p.From);
   const body = (p.Body ?? '').trim();
-  const pending = waiting.get(from);
+  const pending = waiting.get(`${from}|${ctx.getStore()?.client ?? ''}`);
   if (pending) {
     pending.resolve(body);
     return reply(`Thank you — recorded (${pending.role}).`);
@@ -379,16 +393,24 @@ function nextTextStep(live: Live, channel: 'whatsapp' | 'sms'): string {
 const reply = (text: string) => twiml(`<Message>${xml(text)}</Message>`);
 
 // ------------------------------------------------------------------ live dashboard (SSE)
-const clients = new Set<ServerResponse>();
-let pendingBroadcast: NodeJS.Timeout | null = null;
+const clients = new Map<ServerResponse, string>(); // SSE response → client id ('' = watcher of real calls)
+const pendingBroadcast = new Map<string, NodeJS.Timeout>();
+const snapshot = (live: Live) => `data: ${JSON.stringify({ key: live.key, channel: live.channel, state: live.agent.getState() })}\n\n`;
 function broadcast(live: Live) {
-  if (live !== current || pendingBroadcast) return;
-  pendingBroadcast = setTimeout(() => {
-    pendingBroadcast = null;
-    const payload = `data: ${JSON.stringify({ key: live.key, channel: live.channel, state: live.agent.getState() })}\n\n`;
-    for (const c of clients) c.write(payload);
-  }, 120);
+  if (pendingBroadcast.has(live.key)) return;
+  pendingBroadcast.set(
+    live.key,
+    setTimeout(() => {
+      pendingBroadcast.delete(live.key);
+      const payload = snapshot(live);
+      for (const [c, id] of clients) {
+        const followed = id ? follow.get(id) : undefined;
+        if (followed === live.key || (!followed && !live.owner && live === current)) c.write(payload);
+      }
+    }, 100),
+  );
 }
+const sessionFor = (client?: string) => (client && follow.get(client) ? sessions.get(follow.get(client)!) : undefined) ?? (client ? undefined : current ?? undefined);
 
 // ------------------------------------------------------------------ http
 function readBody(req: IncomingMessage): Promise<string> {
@@ -416,28 +438,42 @@ const server = createServer(async (req, res) => {
       return json(res, {
         mode: MODE, twilio: !!SID, elevenlabs: !!VOICE_ENV.ELEVENLABS_API_KEY, publicUrl: env.PUBLIC_URL ?? null,
         hospital: HOSPITAL ? HOSPITAL.slice(0, -4) + '****' : null, doctor: DOCTOR ? DOCTOR.slice(0, -4) + '****' : null,
-        sessions: sessions.size, current: current?.key ?? null,
+        sessions: sessions.size, clients: new Set(clients.values()).size,
       });
     }
     if (url.pathname === '/live/events') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      clients.add(res);
-      if (current) res.write(`data: ${JSON.stringify({ key: current.key, channel: current.channel, state: current.agent.getState() })}\n\n`);
-      req.on('close', () => clients.delete(res));
+      const client = url.searchParams.get('client') ?? '';
+      clients.set(res, client);
+      const live = sessionFor(client || undefined) ?? (!client ? current : undefined);
+      if (live) res.write(snapshot(live));
+      const ping = setInterval(() => res.write(': ping\n\n'), 25_000); // keep proxies from closing idle streams
+      req.on('close', () => {
+        clearInterval(ping);
+        clients.delete(res);
+      });
       return;
     }
     if (url.pathname === '/live/action' && req.method === 'POST') {
-      const { method, args = [] } = JSON.parse(await readBody(req)) as { method: string; args?: unknown[] };
+      const { method, args = [], client } = JSON.parse(await readBody(req)) as { method: string; args?: unknown[]; client?: string };
       const allowed = ['answer', 'authorizeTransfer', 'authorizeCouncil', 'recordCounterReferral', 'submitIntake', 'setLang', 'setOption'];
-      if (!current || !allowed.includes(method)) return json(res, { ok: false }, 400);
-      void (current.agent as unknown as Record<string, (...a: unknown[]) => unknown>)[method](...args);
+      const live = sessionFor(client);
+      if (!live || !allowed.includes(method)) return json(res, { ok: false }, 400);
+      void (live.agent as unknown as Record<string, (...a: unknown[]) => unknown>)[method](...args);
       return json(res, { ok: true });
+    }
+    if (url.pathname === '/live/start' && req.method === 'POST') {
+      // A web (browser) case on the server — the same agent the phone channels use.
+      const { client, scenario = 'open' } = JSON.parse(await readBody(req)) as { client: string; scenario?: ScenarioDef['id'] };
+      if (!client || !(scenario in SCENARIOS)) return json(res, { ok: false }, 400);
+      const live = ctx.run({ client }, () => newSession(`web:${client}:${Date.now()}`, 'web', '', scenario));
+      return json(res, { ok: true, key: live.key });
     }
     // ---- sandbox simulator: same code paths as Twilio, without Twilio ----
     if (SANDBOX && url.pathname === '/sim/twilio' && req.method === 'POST') {
-      const { path, params, query } = JSON.parse(await readBody(req)) as { path: string; params: Record<string, string>; query?: string };
+      const { path, params, query, client } = JSON.parse(await readBody(req)) as { path: string; params: Record<string, string>; query?: string; client?: string };
       const q = new URLSearchParams(query ?? '');
-      const out = path.startsWith('/twilio/voice') ? await voice(path, params, q) : await message(path === '/twilio/sms' ? 'sms' : 'whatsapp', params);
+      const out = await ctx.run({ client }, () => (path.startsWith('/twilio/voice') ? voice(path, params, q) : message(path === '/twilio/sms' ? 'sms' : 'whatsapp', params)));
       res.writeHead(200, { 'content-type': 'text/xml' });
       return res.end(out);
     }
@@ -456,13 +492,18 @@ const server = createServer(async (req, res) => {
       if (!recordings.has(id)) recordings.set(id, { buf: Buffer.from(await synthesize({ ...VOICE_ENV, ELEVENLABS_TTS_MODEL: 'eleven_multilingual_v2' }, text)), type: 'audio/mpeg' });
       return json(res, { url: `sim:${id}`, text });
     }
-    if (url.pathname === '/live/outbox') return json(res, outbox.slice(-50));
+    if (url.pathname === '/live/outbox') {
+      const client = url.searchParams.get('client') ?? '';
+      return json(res, outbox.filter((o) => !o.owner || o.owner === client).slice(-50));
+    }
     if (url.pathname === '/live/reset' && req.method === 'POST') {
-      sessions.clear();
-      outbox.length = 0;
-      current = null;
-      for (const w of waiting.values()) w.resolve(null);
-      for (const c of clients) c.write('event: reset\ndata: {}\n\n');
+      const { client } = JSON.parse((await readBody(req)) || '{}') as { client?: string };
+      if (!client) return json(res, { ok: false, error: 'client required' }, 400);
+      for (const [k, l] of sessions) if (l.owner === client) sessions.delete(k);
+      for (let i = outbox.length - 1; i >= 0; i--) if (outbox[i].owner === client) outbox.splice(i, 1);
+      follow.delete(client);
+      for (const [k, w] of waiting) if (k.endsWith(`|${client}`)) w.resolve(null);
+      for (const [c, id] of clients) if (id === client) c.write('event: reset\ndata: {}\n\n');
       return json(res, { ok: true });
     }
     if (url.pathname === '/live/call' && req.method === 'POST') {

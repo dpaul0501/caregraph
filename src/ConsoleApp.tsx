@@ -20,7 +20,7 @@ if (import.meta.hot?.data) {
   import.meta.hot.data.agent = agent;
   import.meta.hot.data.remote = remote;
 }
-if (typeof window !== 'undefined') (window as unknown as { caregraph: CareGraphAgent }).caregraph = agent;
+if (typeof window !== 'undefined') Object.assign(window, { caregraph: agent, caregraphRemote: remote });
 
 type View = 'web' | 'phone' | 'chat';
 
@@ -40,16 +40,21 @@ export default function ConsoleApp() {
     voiceHealth().then((h) => setVoiceLive(h.elevenlabs));
     telephonyHealth().then(setTel);
   }, []);
+  // The server is the product: every view runs on it when reachable. The in-browser engine is
+  // only an offline fallback for the Web view.
+  const serverUp = !!tel;
+  const useServer = serverUp || view !== 'web';
   useEffect(() => {
-    if (view !== 'web') remote.connect();
-  }, [view]);
-  // Demo off → the in-browser agent starts as an open case (any patient).
+    if (useServer) remote.connect();
+  }, [useServer]);
+  // Fresh case whenever the view or demo mode changes (an open case = any patient).
   useEffect(() => {
-    agent.reset('open');
-  }, [demo]);
+    if (view === 'web' && serverUp) void remote.reset('open');
+    else if (view === 'web') agent.reset('open');
+  }, [demo, view, serverUp]);
 
-  const active = (view === 'web' ? agent : remote) as unknown as CareGraphAgent;
-  const reset = () => (view === 'web' ? agent.reset('open') : remote.reset());
+  const active = (useServer ? remote : agent) as unknown as CareGraphAgent;
+  const reset = () => (useServer ? remote.reset('open') : agent.reset('open'));
 
   return (
     <DemoContext.Provider value={demo}>

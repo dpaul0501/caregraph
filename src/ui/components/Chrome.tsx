@@ -47,6 +47,14 @@ export function Header({
         ))}
       </div>
 
+      <span
+        title={telephony ? `CareGraph server (${telephony.mode})` : 'Server unreachable — running the engine in this browser'}
+        className={cx('flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold', telephony ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800')}
+      >
+        <span className={cx('h-1.5 w-1.5 rounded-full', telephony ? 'bg-emerald-500' : 'bg-amber-500')} />
+        {telephony ? 'CareGraph server connected' : 'Offline · in-browser engine'}
+      </span>
+
       <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold" title="Demo mode offers two scripted cases; off = describe any patient">
         <span className={cx('relative h-5 w-9 rounded-full transition', demo ? 'bg-brand' : 'bg-slate-300')}>
           <span className={cx('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition', demo ? 'left-[18px]' : 'left-0.5')} />

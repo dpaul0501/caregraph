@@ -95,7 +95,7 @@ function EmptyState() {
   const { s, agent } = useAgent();
   const demo = useDemo();
   async function play(id: 'maternal' | 'pediatric') {
-    agent.reset(id);
+    await agent.reset(id);
     const script = SCENARIOS[id].intake[s.lang] ?? SCENARIOS[id].intake.en;
     await agent.submitIntake(script, 'voice · demo recording');
   }
@@ -104,7 +104,7 @@ function EmptyState() {
       <div className="rounded-xl border border-dashed border-line p-4 text-sm text-slate-600">
         Describe any patient — speak (mic) or type, in any language. CareGraph chooses the pathway, asks only what matters, and routes.
       </div>
-      {demo && !(agent as unknown as { isRemote?: boolean }).isRemote && (
+      {demo && (
         <div className="grid gap-2">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Demo mode · play a case</div>
           {DEMOS.map((d) => (

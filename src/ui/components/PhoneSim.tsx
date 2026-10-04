@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { simDemoRecording, simRecording, simTwilio, TEL, type OutboxItem, type RemoteAgent } from '@/live/remote';
+import { simDemoRecording, simRecording, simTwilio, TEL, WORKER_PHONE, type OutboxItem, type RemoteAgent } from '@/live/remote';
 import { Recorder } from '@/ui/voice';
 import { cx } from '@/ui/format';
 import { useDemo } from '@/ui/useAgent';
@@ -8,7 +8,7 @@ import { useDemo } from '@/ui/useAgent';
  * Sandbox phone: drives the telephony server exactly as Twilio would (same webhooks,
  * same TwiML), so rehearsals cost nothing and the final demo flips to real Twilio.
  */
-const WORKER = '+910000000009';
+const WORKER = WORKER_PHONE;
 const HOSPITAL = '+910000000001';
 const DOCTOR = '+910000000002';
 
