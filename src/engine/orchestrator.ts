@@ -3,7 +3,7 @@ import facilityData from '../data/facilities.json';
 import expertData from '../data/experts.json';
 import patientData from '../data/patients.json';
 import { factLabel } from '../data/factCatalog';
-import { SCENARIOS, type ScenarioDef } from '../data/scenarios';
+import { SCENARIOS, type CouncilChoice, type ScenarioDef } from '../data/scenarios';
 import { extractCase, parseBP } from './extract';
 import { searchFacilities, type CapabilityDef, type Facility, type FacilitySearch } from './facilities';
 import { convokeCouncil, type Council, type Expert } from './experts';
@@ -12,7 +12,7 @@ import { assessRisk, priorCalibration, type Calibration, type RiskAssessment } f
 import { MODELS } from './models';
 import { factsIn } from './logic';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
-import { buildPacket, type DecisionPacket } from './summary';
+import { buildPacket, packetToText, type DecisionPacket } from './summary';
 import { escalationThreshold, hiddenEmergencyRisk, isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
 import { assessUncertainty, type Conflict, type UncertaintyDim } from './uncertainty';
 import type {
@@ -212,6 +212,16 @@ function computeUncertainty(s: Session): UncertaintyDim[] {
 }
 
 /**
+ * Real-world integrations behind interfaces. When absent, CareGraph simulates the
+ * counterpart (demo mode). The server plugs in WhatsApp/SMS round-trips.
+ */
+export interface Integrations {
+  requestAcceptance?(req: { caseId: string; facilityName: string; packetText: string; timeoutMs: number }): Promise<{ by: string; role: string; text: string; accepted: boolean } | null>;
+  requestPeerOpinion?(req: { caseId: string; expertName: string; specialty: string; packetText: string; timeoutMs: number }): Promise<{ choice: CouncilChoice; text: string } | null>;
+  notifyWorker?(text: string): void;
+}
+
+/**
  * CareGraph orchestrator. Deterministic planner over explicit tools:
  * at each step it identifies which uncertainty blocks the next safe action
  * and calls the tool that reduces it. Safety-critical decisions (triage,
@@ -225,6 +235,10 @@ export class CareGraphAgent {
   private msgSeq = 0;
   private generation = 0;
   speed = 1; // 0 = instant (tests)
+
+  integrations: Integrations = {};
+  /** Max real wait for a human reply (ms) before escalation; demo-friendly default. */
+  humanTimeoutMs = 120_000;
 
   constructor(scenarioId: ScenarioDef['id'] = 'maternal', lang: Lang = 'en') {
     this.s = freshSession(scenarioId, lang, { facilityNoResponse: false });
@@ -671,10 +685,19 @@ export class CareGraphAgent {
       this.focus('Human acknowledgement — awaiting council quorum', 'track_referral', `Quorum ${council.quorum} within ${council.windowMin / 60} h; async members never block the decision.`);
 
       const scripted = s.scenario.council ?? {};
+      let suggestion: { q: string; by: string } | null = null;
       for (const m of council.members.filter((x) => x.role !== 'ASYNC')) {
-        await this.pause(1400);
+        if (!this.integrations.requestPeerOpinion) await this.pause(1400);
         this.tick(Math.min(m.expert.typical_response_min, 12));
-        const r = scripted[m.expert.id] ?? { choice: 'AGREE + REFER' as const, text: 'Agree with protocol pathway.' };
+        let r: { choice: CouncilChoice; text: string; suggestsQuestion?: string } = scripted[m.expert.id] ?? { choice: 'AGREE + REFER', text: 'Agree with protocol pathway.' };
+        if (this.integrations.requestPeerOpinion) {
+          const live = await this.integrations.requestPeerOpinion({ caseId: s.caseId, expertName: m.expert.name, specialty: m.expert.specialty, packetText: packetToText(s.packet!), timeoutMs: this.humanTimeoutMs });
+          if (!live) {
+            this.say({ role: 'system', kind: 'alert', text: `${m.expert.name} did not reply in time — continuing without blocking.` });
+            continue;
+          }
+          r = { ...live, suggestsQuestion: /hear/i.test(live.text) ? 'q_hearing' : undefined };
+        }
         const opinion: PeerOpinion = {
           expertId: m.expert.id,
           name: m.expert.name,
@@ -697,6 +720,7 @@ export class CareGraphAgent {
           () => `${r.choice} · stored as HUMAN_PEER_OPINION, scope CASE_SPECIFIC — not written to global knowledge`,
           { evidence: 'HUMAN_PEER_OPINION', actor: 'CLINICIAN' },
         );
+        if (r.suggestsQuestion && !suggestion) suggestion = { q: r.suggestsQuestion, by: m.expert.name };
         if (opinion.conflict) s.conflicts = [...s.conflicts, { key: 'next_action', a: 'refer (protocol)', b: `manage locally (${m.expert.name})`, resolution: 'Surfaced — not auto-resolved' }];
         this.say({ role: 'peer', text: r.text, via: `${m.expert.name} · ${m.expert.specialty}${m.role === 'LEAD' ? ' · lead' : ''}`, channel: r.choice });
       }
@@ -711,10 +735,10 @@ export class CareGraphAgent {
       this.audit({ actor: 'AGENT', kind: 'DECISION', title: 'Council outcome', detail: s.consensus });
       this.go('PEER_REVIEW_RECEIVED', s.consensus, 'CLINICIAN');
 
-      const suggested = Object.values(scripted).find((r) => r.suggestsQuestion)?.suggestsQuestion;
-      const q = suggested && s.protocol.questions.find((x) => x.id === suggested);
-      if (q && !q.facts.every((k) => isEstablished(s.facts, k)) && !s.asked.includes(q.id)) {
-        const by = council.members.find((m) => scripted[m.expert.id]?.suggestsQuestion === suggested)!.expert.name;
+      const sugg = suggestion as { q: string; by: string } | null;
+      const q = sugg && s.protocol.questions.find((x) => x.id === sugg.q);
+      if (sugg && q && !q.facts.every((k) => isEstablished(s.facts, k)) && !s.asked.includes(q.id)) {
+        const by = sugg.by;
         this.go('ASSESSING', 'Council requested additional information', 'CLINICIAN');
         this.focus(`Evidence completeness — council asked for ${q.facts.map(factLabel).join(', ')}`, 'ask_question', `Requested by ${by}; recorded as case-specific advice.`);
         this.askQuestion(q, by);
@@ -860,8 +884,22 @@ export class CareGraphAgent {
       }
       this.focus('Human acknowledgement — receiving facility', 'track_referral', `Response window ${policy.facility_response_min} min; then escalate to ${policy.escalate_to}.`);
 
-      await this.pause(1800);
-      if (s.options.facilityNoResponse) {
+      let real: Awaited<ReturnType<NonNullable<Integrations['requestAcceptance']>>> = null;
+      if (this.integrations.requestAcceptance && !s.options.facilityNoResponse) {
+        this.say({ role: 'system', kind: 'info', text: `Waiting for ${sel.facility.name} to reply on WhatsApp (1 = ACCEPT, 2 = CANNOT)…` });
+        real = await this.integrations.requestAcceptance({
+          caseId: s.caseId,
+          facilityName: sel.facility.name,
+          packetText: packetToText(s.packet!),
+          timeoutMs: Math.min(this.humanTimeoutMs, policy.facility_response_min * 60_000),
+        });
+        if (real && !real.accepted) {
+          this.audit({ actor: 'FACILITY', kind: 'HUMAN', title: `${sel.facility.name} cannot accept`, detail: real.text });
+          this.say({ role: 'facility', text: real.text, via: `${real.by} · ${real.role}` });
+          this.say({ role: 'system', kind: 'alert', text: `${sel.facility.name} cannot accept. Escalating to ${policy.escalate_to} for the backup destination.` });
+        }
+      } else await this.pause(1800);
+      if (s.options.facilityNoResponse || (this.integrations.requestAcceptance && (!real || !real.accepted))) {
         this.tick(policy.facility_response_min);
         s.transfer = { ...s.transfer!, escalated: true };
         this.audit({ actor: 'SYSTEM', kind: 'DECISION', title: `No response in ${policy.facility_response_min} min → escalate`, detail: `Escalated to ${policy.escalate_to}` });
@@ -870,9 +908,12 @@ export class CareGraphAgent {
         this.tick(2);
       } else this.tick(urgent ? 3.5 : 25);
 
-      const fr = s.scenario.facilityResponse;
+      const fr = real && real.accepted ? { ...s.scenario.facilityResponse, by: real.by, role: real.role, text: real.text } : s.scenario.facilityResponse;
       const by = s.transfer!.escalated ? `${policy.escalate_to} for ${fr.by}` : fr.by;
       s.transfer = { ...s.transfer!, status: 'ACCEPTED', response: { by, role: fr.role, text: fr.text, at: s.clock } };
+      this.integrations.notifyWorker?.(
+        `CareGraph ${s.caseId}: ${sel.facility.name} ACCEPTED (${by}). ${urgent ? 'Ambulance requested (108). ' : ''}Go to: ${sel.facility.name}, ${sel.roadKm} km, ~${sel.etaMin} min.`,
+      );
       this.audit({ actor: 'FACILITY', kind: 'HUMAN', title: `Transfer ACCEPTED by ${by}`, detail: fr.text });
       this.say({ role: 'facility', text: fr.text, via: `${by} · ${fr.role}` });
       this.go('TRANSFER_ACCEPTED', `Accepted by ${by}`, 'FACILITY');

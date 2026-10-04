@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), apiPlugin(env)],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-    server: { port: 8080 },
+    server: {
+      port: 8080,
+      proxy: { '/tel': { target: 'http://localhost:8787', changeOrigin: true, rewrite: (p) => p.replace(/^\/tel/, '') } },
+    },
     test: { include: ['tests/**/*.test.ts'] },
   };
 });

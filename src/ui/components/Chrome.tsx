@@ -6,7 +6,19 @@ import { KG } from '@/engine/kg';
 import { EVIDENCE_STYLE, clockLabel, cx } from '@/ui/format';
 import { CaseFacts, QuestionRanking, UncertaintyPanel } from './Center';
 
-export function Header({ voiceLive, onDetails }: { voiceLive: boolean; onDetails: () => void }) {
+export function Header({
+  voiceLive,
+  onDetails,
+  mode,
+  setMode,
+  telephony,
+}: {
+  voiceLive: boolean;
+  onDetails: () => void;
+  mode: 'local' | 'live';
+  setMode: (m: 'local' | 'live') => void;
+  telephony: { mode: string } | null;
+}) {
   const { s, agent } = useAgent();
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-5 py-2.5">
@@ -26,6 +38,20 @@ export function Header({ voiceLive, onDetails }: { voiceLive: boolean; onDetails
       </div>
 
       <div className="flex rounded-lg border border-line bg-slate-50 p-0.5">
+        <button onClick={() => setMode('local')} className={cx('rounded-md px-3 py-1 text-xs font-semibold', mode === 'local' ? 'bg-white text-ink shadow-sm' : 'text-muted')}>
+          In-browser demo
+        </button>
+        <button
+          onClick={() => setMode('live')}
+          disabled={!telephony}
+          title={telephony ? `Telephony server: ${telephony.mode}` : 'Start the telephony server: npx tsx server/telephony.ts'}
+          className={cx('rounded-md px-3 py-1 text-xs font-semibold disabled:opacity-40', mode === 'live' ? 'bg-slate-900 text-white shadow-sm' : 'text-muted')}
+        >
+          Live: phone & WhatsApp{telephony ? ` (${telephony.mode})` : ''}
+        </button>
+      </div>
+
+      {mode === 'local' && <div className="flex rounded-lg border border-line bg-slate-50 p-0.5">
         {Object.values(SCENARIOS).map((sc) => (
           <button
             key={sc.id}
@@ -36,7 +62,7 @@ export function Header({ voiceLive, onDetails }: { voiceLive: boolean; onDetails
             {sc.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <span className="rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-900" title={PACK.approval_status}>
