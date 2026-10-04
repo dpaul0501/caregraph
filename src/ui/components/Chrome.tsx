@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAgent } from '@/ui/useAgent';
 import { PACK, type Lang } from '@/engine/orchestrator';
-import { SCENARIOS } from '@/data/scenarios';
 import { KG } from '@/engine/kg';
 import { EVIDENCE_STYLE, clockLabel, cx } from '@/ui/format';
 import { CaseFacts, QuestionRanking, UncertaintyPanel } from './Center';
@@ -9,60 +8,52 @@ import { CaseFacts, QuestionRanking, UncertaintyPanel } from './Center';
 export function Header({
   voiceLive,
   onDetails,
-  mode,
-  setMode,
+  view,
+  setView,
+  demo,
+  setDemo,
   telephony,
+  onReset,
 }: {
   voiceLive: boolean;
   onDetails: () => void;
-  mode: 'local' | 'live';
-  setMode: (m: 'local' | 'live') => void;
+  view: 'web' | 'phone' | 'chat';
+  setView: (v: 'web' | 'phone' | 'chat') => void;
+  demo: boolean;
+  setDemo: (d: boolean) => void;
   telephony: { mode: string } | null;
+  onReset: () => void;
 }) {
   const { s, agent } = useAgent();
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-5 py-2.5">
-      <div className="flex items-center gap-2.5">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-white">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-            <circle cx="5" cy="12" r="2.2" />
-            <circle cx="19" cy="6" r="2.2" />
-            <circle cx="19" cy="18" r="2.2" />
-            <path d="M7 11l10-4M7 13l10 4" />
-          </svg>
-        </div>
-        <div>
-          <div className="text-[17px] font-bold leading-none tracking-tight">CareGraph</div>
-          <div className="text-[11px] text-muted">From uncertain case to safe, executable next action</div>
-        </div>
-      </div>
-
-      <div className="flex rounded-lg border border-line bg-slate-50 p-0.5">
-        <button onClick={() => setMode('local')} className={cx('rounded-md px-3 py-1 text-xs font-semibold', mode === 'local' ? 'bg-white text-ink shadow-sm' : 'text-muted')}>
-          In-browser demo
-        </button>
-        <button
-          onClick={() => setMode('live')}
-          disabled={!telephony}
-          title={telephony ? `Telephony server: ${telephony.mode}` : 'Start the telephony server: npx tsx server/telephony.ts'}
-          className={cx('rounded-md px-3 py-1 text-xs font-semibold disabled:opacity-40', mode === 'live' ? 'bg-slate-900 text-white shadow-sm' : 'text-muted')}
-        >
-          Live: phone & WhatsApp{telephony ? ` (${telephony.mode})` : ''}
-        </button>
-      </div>
-
-      {mode === 'local' && <div className="flex rounded-lg border border-line bg-slate-50 p-0.5">
-        {Object.values(SCENARIOS).map((sc) => (
+      <div className="flex rounded-lg border border-line bg-slate-50 p-0.5" role="tablist" aria-label="Channel">
+        {(
+          [
+            ['web', 'Web'],
+            ['phone', 'Phone (IVR)'],
+            ['chat', 'WhatsApp / SMS'],
+          ] as const
+        ).map(([v, label]) => (
           <button
-            key={sc.id}
-            onClick={() => agent.reset(sc.id)}
-            title={sc.tagline}
-            className={cx('rounded-md px-3 py-1 text-xs font-semibold', s.scenario.id === sc.id ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink')}
+            key={v}
+            onClick={() => setView(v)}
+            disabled={v !== 'web' && !telephony}
+            title={v !== 'web' && !telephony ? 'Needs the CareGraph telephony server (npm run telephony)' : undefined}
+            className={cx('rounded-md px-3 py-1 text-xs font-semibold disabled:opacity-40', view === v ? 'bg-slate-900 text-white shadow-sm' : 'text-muted hover:text-ink')}
           >
-            {sc.label}
+            {label}
           </button>
         ))}
-      </div>}
+      </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold" title="Demo mode offers two scripted cases; off = describe any patient">
+        <span className={cx('relative h-5 w-9 rounded-full transition', demo ? 'bg-brand' : 'bg-slate-300')}>
+          <span className={cx('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition', demo ? 'left-[18px]' : 'left-0.5')} />
+        </span>
+        <input type="checkbox" className="sr-only" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
+        Demo mode {demo ? 'on' : 'off'}
+      </label>
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <span className="rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-900" title={PACK.approval_status}>
@@ -90,7 +81,7 @@ export function Header({
         <button onClick={onDetails} className="rounded-lg border border-line px-2.5 py-1 text-xs font-semibold hover:border-brand">
           Details & audit
         </button>
-        <button onClick={() => agent.reset()} className="rounded-lg border border-line px-2.5 py-1 text-xs font-semibold hover:border-brand">
+        <button onClick={onReset} className="rounded-lg border border-line px-2.5 py-1 text-xs font-semibold hover:border-brand">
           Reset
         </button>
       </div>
@@ -191,7 +182,7 @@ function ContextTab() {
   const layers = [
     ['1 · Global evidence', PACK.who_baseline],
     ['2 · Country pack', `${PACK.name} v${PACK.version} (effective ${PACK.effective}) — ${PACK.local_adaptation}`],
-    ['3 · Regional context', `${PACK.district} · facility status & specialist rosters (simulated feed)`],
+    ['3 · Regional context', `${PACK.district} · facility status & specialist rosters`],
     ['4 · Patient context', `${s.patient.record_source} — ${s.patient.id}`],
     ['5 · Operational network', `${PACK.emergency.ambulance_service} · referral desk · expert directory`],
     ['Evidence graph', `${KG._meta.version} — ${KG._meta.validation}`],

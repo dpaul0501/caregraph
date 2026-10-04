@@ -1,4 +1,5 @@
 import { CareGraphAgent, type Session } from '@/engine/orchestrator';
+import { SITE } from '@/config/site';
 
 /**
  * Base URL of the telephony server. Resolution order:
@@ -14,7 +15,7 @@ function resolveTelephonyUrl(): string {
   } catch {
     /* storage unavailable */
   }
-  return (import.meta.env.VITE_TELEPHONY_URL as string | undefined) ?? '/tel';
+  return SITE.telephonyUrl || ((import.meta.env.VITE_TELEPHONY_URL as string | undefined) ?? '/tel');
 }
 export const TEL = resolveTelephonyUrl();
 
@@ -38,7 +39,7 @@ export class RemoteAgent {
   connected = false;
 
   constructor() {
-    this.state = new CareGraphAgent('maternal', 'hi').getState();
+    this.state = new CareGraphAgent('open', 'hi').getState();
   }
 
   connect() {
@@ -58,7 +59,7 @@ export class RemoteAgent {
     };
     this.es.addEventListener('reset', () => {
       this.outbox = [];
-      this.state = new CareGraphAgent('maternal', 'hi').getState();
+      this.state = new CareGraphAgent('open', 'hi').getState();
       this.emit();
     });
     this.es.addEventListener('outbox', (e) => {

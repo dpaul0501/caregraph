@@ -1,5 +1,6 @@
 import maternal from '../protocols/maternal_demo_v1.json';
 import pediatric from '../protocols/pediatric_bone_demo_v1.json';
+import general from '../protocols/general_danger_signs_v1.json';
 import type { Protocol } from '../engine/types';
 
 export type CouncilChoice = 'AGREE + REFER' | 'ASK ANOTHER QUESTION' | 'MANAGE LOCALLY' | 'CALL ME';
@@ -7,7 +8,7 @@ export type CouncilChoice = 'AGREE + REFER' | 'ASK ANOTHER QUESTION' | 'MANAGE L
 export type DemoAnswer = { bp: string } | { outcome: number } | { unknown: true };
 
 export interface ScenarioDef {
-  id: 'maternal' | 'pediatric';
+  id: 'maternal' | 'pediatric' | 'open';
   label: string;
   tagline: string;
   patientId: string;
@@ -27,7 +28,25 @@ export interface ScenarioDef {
   council?: Record<string, { choice: CouncilChoice; text: string; suggestsQuestion?: string }>;
 }
 
+/** Clinical pathways the agent can choose from, in priority order (general is the safe fallback). */
+export const PATHWAYS: Protocol[] = [maternal as Protocol, pediatric as Protocol, general as Protocol];
+
 export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
+  open: {
+    id: 'open',
+    label: 'Any case',
+    tagline: 'Describe any patient; CareGraph chooses the pathway',
+    patientId: 'PT-NEW',
+    workerId: 'asha-asha',
+    protocol: general as Protocol,
+    intake: {},
+    demoAnswers: {},
+    diagnosisNote: 'Not established — CareGraph decides the safe next action, not the diagnosis',
+    presentKeys: ['severe_headache', 'edema', 'convulsions', 'unconscious', 'breathlessness', 'severe_bleeding', 'unable_to_drink', 'chest_pain', 'fever', 'recurrent_fracture'],
+    unknownKeys: ['convulsions', 'unconscious', 'breathlessness', 'severe_bleeding'],
+    facilityResponse: { by: 'Duty medical officer', role: 'Receiving facility', text: 'ACCEPT. Send the patient; team informed.', nonUrgentSlot: 'today' },
+    counterReferral: 'Counter-referral: patient seen; plan shared with the health worker.',
+  },
   maternal: {
     id: 'maternal',
     label: 'A · Maternal emergency',

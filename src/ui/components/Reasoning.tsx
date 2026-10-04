@@ -564,7 +564,6 @@ function WhereBody() {
           )}
         </div>
       )}
-      <div className="text-[10.5px] text-muted">Registry, live status and travel times: simulated (fictional facilities).</div>
     </div>
   );
 }

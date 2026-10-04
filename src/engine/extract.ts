@@ -182,9 +182,19 @@ export function extractCase(raw: string, opts: { source: string; at: number; evi
   push(term(text, 'blue_sclera', /\b(blue|grey|gray|bluish) (?:sclera|whites of (?:the |his |her )?eyes)|whites of (?:his |her |the )?eyes (?:look |are )?(?:blue|grey|gray|bluish)/, 0.88));
   push(term(text, 'hearing_impairment', /\b(hearing (?:problems?|loss|difficulty)|hard of hearing|can'?t hear)/, 0.88));
 
+  // General danger signs (WHO ETAT / IMCI)
+  push(term(text, 'unconscious', /\b(unconscious|not responding|unresponsive|fainted|passed out|very drowsy)\b/, 0.88));
+  push(term(text, 'unable_to_drink', /\b(can'?t drink|cannot drink|unable to drink|vomit(?:s|ing)? everything)\b/, 0.88));
+  push(term(text, 'severe_bleeding', /\b(heavy bleeding|bleeding (?:a lot|heavily)|lots of blood)\b/, 0.88));
+
   // Fever syndrome
   push(term(text, 'fever', /\bfever|febrile|high temperature\b/, 0.93));
   push(term(text, 'myalgia', /\bbody ?aches?|myalgia|muscle (?:pain|aches?)/, 0.9));
+
+  // Knowledge coverage: something was described, but nothing maps to a known clinical finding.
+  const DEMOGRAPHIC = new Set(['age_years', 'sex', 'pregnant', 'gestational_weeks', 'symptom_onset']);
+  if (text.trim().length > 3 && !hits.some((h) => !DEMOGRAPHIC.has(h.key) && h.value === true))
+    hits.push({ key: 'unrecognized_complaint', value: true, confidence: 0.7, quote: text.slice(0, 60), note: 'No finding in CareGraph\'s knowledge — will not guess' });
 
   // De-duplicate (first hit per key wins)
   const seen = new Set<string>();

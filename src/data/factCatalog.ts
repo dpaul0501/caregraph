@@ -40,6 +40,12 @@ export const FACTS: Record<string, FactDef> = {
   poor_diet_sunlight: { label: 'Poor diet / sunlight', type: 'boolean', group: 'presentation' },
   history_inconsistent: { label: 'Inconsistent injury history', type: 'boolean', group: 'presentation' },
 
+  // General danger signs
+  unconscious: { label: 'Very drowsy / not responding', type: 'boolean', group: 'presentation' },
+  unable_to_drink: { label: 'Unable to drink / vomits everything', type: 'boolean', group: 'presentation' },
+  severe_bleeding: { label: 'Heavy bleeding', type: 'boolean', group: 'presentation' },
+  unrecognized_complaint: { label: 'Presentation outside known pathways', type: 'boolean', group: 'presentation' },
+
   // Fever
   fever: { label: 'Fever', type: 'boolean', group: 'presentation' },
   myalgia: { label: 'Body aches', type: 'boolean', group: 'presentation' },

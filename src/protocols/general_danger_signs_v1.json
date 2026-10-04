@@ -1,0 +1,67 @@
+{
+  "id": "general_danger_signs_v1",
+  "title": "General danger signs — any presentation",
+  "version": "0.1.0-demo",
+  "effective": "2026-10-01",
+  "jurisdiction": "IN-DEMO",
+  "validation": "DEMO ENCODING — not clinically validated",
+  "who_baseline": [
+    "WHO Emergency Triage Assessment and Treatment (ETAT) — emergency signs",
+    "WHO IMCI general danger signs"
+  ],
+  "applies_when": { "fact": "unrecognized_complaint", "eq": true },
+  "default_level": "ROUTINE",
+  "default_action": "No danger sign found — routine follow-up",
+  "default_capability": null,
+  "decision_facts": ["convulsions", "unconscious", "breathlessness", "severe_bleeding", "unable_to_drink", "chest_pain", "unrecognized_complaint"],
+  "rules": [
+    {
+      "id": "G-01", "title": "Convulsions", "when": { "fact": "convulsions", "eq": true },
+      "level": "EMERGENCY", "action": "Emergency referral to the nearest 24x7 emergency care", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO ETAT emergency sign: convulsions", "local": "IN-DEMO pack §2.1: call 108" }
+    },
+    {
+      "id": "G-02", "title": "Unconscious or not responding", "when": { "fact": "unconscious", "eq": true },
+      "level": "EMERGENCY", "action": "Emergency referral to the nearest 24x7 emergency care", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO ETAT emergency sign: coma / unresponsive", "local": "IN-DEMO pack §2.1" }
+    },
+    {
+      "id": "G-03", "title": "Severe breathing difficulty", "when": { "fact": "breathlessness", "eq": true },
+      "level": "EMERGENCY", "action": "Emergency referral to the nearest 24x7 emergency care", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO ETAT emergency sign: obstructed or absent breathing / severe respiratory distress", "local": "IN-DEMO pack §2.1" }
+    },
+    {
+      "id": "G-04", "title": "Severe bleeding", "when": { "fact": "severe_bleeding", "eq": true },
+      "level": "EMERGENCY", "action": "Emergency referral to the nearest 24x7 emergency care", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO ETAT emergency sign: signs of shock / severe bleeding", "local": "IN-DEMO pack §2.1" }
+    },
+    {
+      "id": "G-05", "title": "Unable to drink or vomits everything", "when": { "fact": "unable_to_drink", "eq": true },
+      "level": "URGENT", "action": "Urgent same-hour assessment at a 24x7 facility", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO IMCI general danger sign: not able to drink / vomits everything", "local": "IN-DEMO pack §2.2" }
+    },
+    {
+      "id": "G-06", "title": "Chest pain", "when": { "fact": "chest_pain", "eq": true },
+      "level": "URGENT", "action": "Urgent same-hour assessment at a 24x7 facility", "required_capability": "emergency_care", "stop_questioning": true,
+      "source": { "baseline": "WHO ETAT priority sign: severe pain", "local": "IN-DEMO pack §2.2" }
+    },
+    {
+      "id": "G-07", "title": "Presentation outside CareGraph's pathways — no danger sign found", "when": { "fact": "unrecognized_complaint", "eq": true },
+      "level": "PRIORITY", "action": "Same-day review by a clinician (presentation not covered by a protocol)", "required_capability": "clinical_review", "stop_questioning": false,
+      "requires_peer_review": true, "expertise": ["General practice"],
+      "source": { "baseline": "Knowledge-coverage rule: never force-fit an unfamiliar presentation to a known pathway", "local": "IN-DEMO pack §2.3: generalist first" }
+    }
+  ],
+  "questions": [
+    { "id": "qg_convulsions", "facts": ["convulsions"], "text": { "en": "Any fits or convulsions?", "hi": "क्या कोई दौरा या झटके आए हैं?", "bn": "কোনো খিঁচুনি হয়েছে?" }, "answer_type": "yesno", "time_cost_min": 0.5,
+      "outcomes": [ { "label": "Yes", "values": { "convulsions": true }, "prior": 0.03 }, { "label": "No", "values": { "convulsions": false }, "prior": 0.97 } ] },
+    { "id": "qg_unconscious", "facts": ["unconscious"], "text": { "en": "Is the person very drowsy or not responding?", "hi": "क्या व्यक्ति बहुत सुस्त है या जवाब नहीं दे रहा?", "bn": "রোগী কি খুব নিস্তেজ বা সাড়া দিচ্ছে না?" }, "answer_type": "yesno", "time_cost_min": 0.5,
+      "outcomes": [ { "label": "Yes", "values": { "unconscious": true }, "prior": 0.03 }, { "label": "No", "values": { "unconscious": false }, "prior": 0.97 } ] },
+    { "id": "qg_breathing", "facts": ["breathlessness"], "text": { "en": "Is the person struggling to breathe?", "hi": "क्या व्यक्ति को साँस लेने में बहुत तकलीफ़ है?", "bn": "রোগীর কি শ্বাস নিতে খুব কষ্ট হচ্ছে?" }, "answer_type": "yesno", "time_cost_min": 0.5,
+      "outcomes": [ { "label": "Yes", "values": { "breathlessness": true }, "prior": 0.05 }, { "label": "No", "values": { "breathlessness": false }, "prior": 0.95 } ] },
+    { "id": "qg_bleeding", "facts": ["severe_bleeding"], "text": { "en": "Is there heavy bleeding?", "hi": "क्या बहुत ज़्यादा खून बह रहा है?", "bn": "অনেক রক্তপাত হচ্ছে কি?" }, "answer_type": "yesno", "time_cost_min": 0.5,
+      "outcomes": [ { "label": "Yes", "values": { "severe_bleeding": true }, "prior": 0.03 }, { "label": "No", "values": { "severe_bleeding": false }, "prior": 0.97 } ] },
+    { "id": "qg_drink", "facts": ["unable_to_drink"], "text": { "en": "Is the person unable to drink, or vomiting everything?", "hi": "क्या व्यक्ति कुछ पी नहीं पा रहा, या सब उल्टी कर देता है?", "bn": "রোগী কি কিছু পান করতে পারছে না, বা সব বমি করে দিচ্ছে?" }, "answer_type": "yesno", "time_cost_min": 0.5,
+      "outcomes": [ { "label": "Yes", "values": { "unable_to_drink": true }, "prior": 0.05 }, { "label": "No", "values": { "unable_to_drink": false }, "prior": 0.95 } ] }
+  ]
+}

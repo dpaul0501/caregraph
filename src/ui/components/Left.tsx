@@ -4,7 +4,9 @@ import { clockLabel, cx } from '@/ui/format';
 import { Recorder, speak, transcribe } from '@/ui/voice';
 import type { Message } from '@/engine/orchestrator';
 import type { DecisionPacket } from '@/engine/summary';
-import { PACK } from '@/engine/orchestrator';
+import { CareGraphAgent, PACK } from '@/engine/orchestrator';
+import { SCENARIOS } from '@/data/scenarios';
+import { useDemo } from '@/ui/useAgent';
 import { LEVEL_RANK } from '@/engine/types';
 
 export function PatientStrip() {
@@ -20,8 +22,9 @@ export function PatientStrip() {
           <div className="flex items-center gap-2">
             <span className="truncate text-[15px] font-bold">{p.display_name}</span>
             <span className="text-[12px] text-muted">
-              {p.age_years}
-              {p.sex} · {p.village}
+              {p.id === 'PT-NEW'
+                ? [s.facts.age_years?.value, s.facts.sex?.value].filter((x) => x !== undefined && x !== null).join('') || 'details from the description'
+                : `${p.age_years}${p.sex} · ${p.village}`}
             </span>
           </div>
           <div className="truncate text-[11.5px] text-muted">
@@ -37,7 +40,7 @@ export function PatientStrip() {
           {p.summary.map((line) => (
             <li key={line}>• {line}</li>
           ))}
-          <li className="pt-1 text-[10.5px] text-violet-700">{p.record_source} — synthetic</li>
+          <li className="pt-1 text-[10.5px] text-violet-700">{p.record_source}</li>
         </ul>
       )}
     </section>
@@ -71,12 +74,7 @@ export function Conversation({ voiceLive }: { voiceLive: boolean }) {
         <div className="text-[11px] text-muted">speaks · answers · authorizes</div>
       </div>
       <div ref={scroller} className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {s.messages.length === 0 && (
-          <div className="rounded-xl border border-dashed border-line p-4 text-sm text-muted">
-            {s.worker.name} describes the patient by voice — no forms to learn. Press the microphone, or use{' '}
-            <span className="font-semibold text-ink">Play demo intake</span>.
-          </div>
-        )}
+        {s.messages.length === 0 && <EmptyState />}
         {s.messages.map((m) => (
           <Bubble key={m.id} m={m} />
         ))}
@@ -85,6 +83,39 @@ export function Conversation({ voiceLive }: { voiceLive: boolean }) {
       </div>
       <Composer voiceLive={voiceLive} />
     </section>
+  );
+}
+
+const DEMOS = [
+  { id: 'maternal' as const, title: 'Pregnant woman, severe headache', sub: 'Emergency: protocol stops the questions, routes to a capable hospital, ambulance, handoff' },
+  { id: 'pediatric' as const, title: 'Child with repeated fractures', sub: 'No emergency: questions lose value, expert escalation, specialist referral' },
+];
+
+function EmptyState() {
+  const { s, agent } = useAgent();
+  const demo = useDemo();
+  async function play(id: 'maternal' | 'pediatric') {
+    agent.reset(id);
+    const script = SCENARIOS[id].intake[s.lang] ?? SCENARIOS[id].intake.en;
+    await agent.submitIntake(script, 'voice · demo recording');
+  }
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-dashed border-line p-4 text-sm text-slate-600">
+        Describe any patient — speak (mic) or type, in any language. CareGraph chooses the pathway, asks only what matters, and routes.
+      </div>
+      {demo && agent instanceof CareGraphAgent && (
+        <div className="grid gap-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Demo mode · play a case</div>
+          {DEMOS.map((d) => (
+            <button key={d.id} onClick={() => play(d.id)} disabled={s.busy} className="appear rounded-xl border border-brand/40 bg-brand-soft p-3 text-left hover:border-brand disabled:opacity-50">
+              <div className="text-sm font-bold">▶ {d.title}</div>
+              <div className="text-[12px] text-slate-600">{d.sub}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -241,7 +272,6 @@ function AuthBox(p: { title: string; lines: string[]; note?: string; cta: string
       >
         {p.cta}
       </button>
-      <div className="mt-1 text-center text-[10px] text-muted">Simulated integration — nothing is really sent or dispatched</div>
     </div>
   );
 }
@@ -249,7 +279,7 @@ function AuthBox(p: { title: string; lines: string[]; note?: string; cta: string
 function AnswerBox() {
   const { s, agent } = useAgent();
   const q = s.pendingQuestion!;
-  const demo = s.scenario.demoAnswers[q.id];
+  const demo = useDemo() ? s.scenario.demoAnswers[q.id] : undefined;
   const [bp, setBp] = useState('');
   const disabled = s.busy;
   return (
@@ -346,17 +376,6 @@ function Composer({ voiceLive }: { voiceLive: boolean }) {
     }
   }
 
-  async function playDemo() {
-    const script = s.scenario.intake[s.lang] ?? s.scenario.intake.en;
-    setText('');
-    for (let i = 1; i <= script.length; i += 3) {
-      setText(script.slice(0, i));
-      await new Promise((r) => setTimeout(r, 18));
-    }
-    setText('');
-    await agent.submitIntake(script, 'voice · DEMO FALLBACK (pre-transcribed)');
-  }
-
   return (
     <div className="border-t border-line p-3">
       {err && <div className="mb-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">{err}</div>}
@@ -396,11 +415,7 @@ function Composer({ voiceLive }: { voiceLive: boolean }) {
           placeholder={rec === 'recording' ? 'Listening…' : intakeDone ? 'Add information (e.g. "she has blurred vision")' : 'Describe the patient…'}
           className="min-w-0 flex-1 rounded-full border border-line bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:bg-white"
         />
-        {!intakeDone && (
-          <button type="button" onClick={playDemo} disabled={s.busy} className="shrink-0 rounded-full border border-dashed border-brand px-3 py-2 text-xs font-semibold text-brand disabled:opacity-40">
-            ▶ Play demo intake
-          </button>
-        )}
+
       </form>
     </div>
   );

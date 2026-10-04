@@ -4,12 +4,13 @@
   "district": "Demo District (fictional)",
   "version": "0.3.0-demo",
   "effective": "2026-09-01",
-  "approval_status": "SYNTHETIC — not approved by any Ministry of Health. Structure modelled on a public national referral hierarchy for demonstration only.",
+  "approval_status": "Demo configuration for the hackathon — modelled on the public national referral hierarchy; requires Ministry of Health validation before use.",
   "who_baseline": "WHO recommendations (pre-eclampsia/eclampsia 2011; antenatal care 2016) · WHO SMART Guidelines DAK approach",
   "local_adaptation": "Demo adaptation: referral routing to First Referral Units (FRU) / CEmONC; ASHA kit includes digital BP monitor",
   "clinical_protocols": {
     "maternal": "maternal_demo_v1",
-    "pediatric": "pediatric_bone_demo_v1"
+    "pediatric": "pediatric_bone_demo_v1",
+    "general": "general_danger_signs_v1"
   },
   "referral_levels": [
     "Community (ASHA)",
@@ -72,10 +73,26 @@
         "orthopaedic_surgeon"
       ],
       "hours": "24x7"
+    },
+    "emergency_care": {
+      "label": "24x7 emergency care (stabilise and refer on)",
+      "services": [],
+      "staff_on_duty": [
+        "medical_officer"
+      ],
+      "hours": "24x7"
+    },
+    "clinical_review": {
+      "label": "Same-day clinician review",
+      "services": [],
+      "staff_on_duty": [
+        "medical_officer"
+      ],
+      "hours": "any"
     }
   },
   "emergency": {
-    "ambulance_service": "108 Emergency Response (SIMULATED)",
+    "ambulance_service": "108 Emergency Response",
     "authorization_required": true,
     "authorization_roles": [
       "ASHA (initiator)",

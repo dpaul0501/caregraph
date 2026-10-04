@@ -255,3 +255,48 @@ describe('pediatric end-to-end (demo case B)', () => {
     expect(s.transport.state).toBe('NOT_REQUESTED');
   });
 });
+
+describe('any case (no demo scenario): the agent chooses the pathway', () => {
+  const open = () => {
+    const a = new CareGraphAgent('open');
+    a.speed = 0;
+    return a;
+  };
+
+  it('pregnancy + danger sign → maternal pathway, asks BP', async () => {
+    const a = open();
+    await a.submitIntake('Woman, 30 weeks pregnant, severe headache since yesterday', 'test');
+    const s = a.getState();
+    expect(s.protocol.id).toBe('maternal_demo_v1');
+    expect(s.pendingQuestion?.id).toBe('q_bp');
+  });
+
+  it('child with repeated fractures → pediatric pathway', async () => {
+    const a = open();
+    await a.submitIntake('Eight year old boy, his third fracture this year', 'test');
+    expect(a.getState().protocol.id).toBe('pediatric_bone_demo_v1');
+  });
+
+  it('unfamiliar presentation → general danger-sign screen → generalist, never a forced diagnosis', async () => {
+    const a = open();
+    await a.submitIntake('Old man, sudden weakness on one side since morning', 'test');
+    let s = a.getState();
+    expect(s.protocol.id).toBe('general_danger_signs_v1');
+    expect(s.facts.unrecognized_complaint.value).toBe(true);
+    for (let i = 0; i < 6 && a.getState().awaiting === 'ANSWER'; i++) await a.answer(a.getState().pendingQuestion!.id, { outcome: 1 });
+    s = a.getState();
+    expect(s.asked.length).toBeGreaterThanOrEqual(3); // danger signs screened first
+    expect(s.triage?.fired[0].id).toBe('G-07');
+    expect(s.awaiting).toBe('AUTHORIZE_COUNCIL');
+    expect(s.council?.members[0].expert.specialty).toBe('General practice');
+  });
+
+  it('"not responding" → emergency, nearest 24x7 facility with a doctor on duty', async () => {
+    const a = open();
+    await a.submitIntake('Woman aged 60, fainted and not responding', 'test');
+    const s = a.getState();
+    expect(s.triage?.level).toBe('EMERGENCY');
+    expect(s.facilitySearch?.selectedId).toBe('phc-kheri');
+    expect(s.asked).toHaveLength(0);
+  });
+});

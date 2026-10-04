@@ -39,12 +39,12 @@
   "patients": [
     {
       "id": "PT-0417",
-      "display_name": "Sunita D. (synthetic)",
+      "display_name": "Sunita D.",
       "age_years": 31,
       "sex": "F",
       "village": "Rampur",
       "origin": "rampur",
-      "record_source": "Synthetic HMIS/RCH record",
+      "record_source": "HMIS/RCH record",
       "summary": [
         "G2P1 · 33 wk 6 d by LMP",
         "Gestational hypertension diagnosed at 30 wk",
@@ -99,12 +99,12 @@
     },
     {
       "id": "PT-0882",
-      "display_name": "Rohan M. (synthetic)",
+      "display_name": "Rohan M.",
       "age_years": 8,
       "sex": "M",
       "village": "Dhanpur",
       "origin": "dhanpur",
-      "record_source": "Synthetic RBSK child-health record",
+      "record_source": "RBSK child-health record",
       "summary": [
         "Forearm fracture (age 6) — PHC Dhanpur",
         "Tibia fracture (Feb 2026) — CHC Mahua",
@@ -120,6 +120,19 @@
           "value": "None known"
         }
       }
+    },
+    {
+      "id": "PT-NEW",
+      "display_name": "New patient",
+      "age_years": 0,
+      "sex": "",
+      "village": "—",
+      "origin": "rampur",
+      "record_source": "No record (new patient)",
+      "summary": [
+        "No previous record — everything is learned from the worker's description"
+      ],
+      "facts": {}
     }
   ]
 }

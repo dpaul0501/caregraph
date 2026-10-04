@@ -246,11 +246,11 @@ async function nextVoiceStep(live: Live, prefix = ''): Promise<string> {
 async function voice(path: string, p: Record<string, string>, q: URLSearchParams): Promise<string> {
   const key = q.get('k') ?? `call:${p.CallSid}`;
   if (path === '/twilio/voice') {
-    const names = Object.values(SCENARIOS).map((sc) => sc.patientId === 'PT-0417' ? 'सुनीता' : 'रोहन');
+    const names = ['नए मरीज़', 'सुनीता', 'रोहन'];
     return twiml(`<Gather input="dtmf" numDigits="1" timeout="8" action="/twilio/voice/patient?k=${encodeURIComponent(key)}">${await speech(HI.welcome(names))}</Gather><Redirect>/twilio/voice</Redirect>`);
   }
   if (path === '/twilio/voice/patient') {
-    const scenario = (p.Digits === '2' ? 'pediatric' : 'maternal') as ScenarioDef['id'];
+    const scenario = (p.Digits === '2' ? 'maternal' : p.Digits === '3' ? 'pediatric' : 'open') as ScenarioDef['id'];
     newSession(key, 'voice', norm(p.From), scenario);
     return twiml(`${await speech(HI.record)}<Record maxLength="45" timeout="4" finishOnKey="#" playBeep="true" trim="trim-silence" action="/twilio/voice/intake?k=${encodeURIComponent(key)}"/>`);
   }
@@ -324,8 +324,7 @@ async function message(channel: 'whatsapp' | 'sms', p: Record<string, string>): 
   let live = sessions.get(key);
   const restart = /^(new|start|cg\b|hi$|hello$|namaste)/i.test(body);
   if (!live || restart || live.agent.getState().awaiting === 'DONE') {
-    const scenario: ScenarioDef['id'] = /\b(boy|girl|child|fracture|बच्चा|लड़का)\b/i.test(body) ? 'pediatric' : 'maternal';
-    live = newSession(key, channel, from, scenario);
+    live = newSession(key, channel, from, 'open');
     if (/^(new|start|hi|hello|namaste)$/i.test(body)) return reply(GUIDE);
   }
   const s = live.agent.getState();
@@ -484,7 +483,9 @@ function json(res: ServerResponse, body: unknown, status = 200) {
 server.listen(PORT, () => {
   console.log(`CareGraph telephony on :${PORT} · mode ${MODE.toUpperCase()} · Twilio ${SID ? 'configured' : 'missing'} · ElevenLabs ${VOICE_ENV.ELEVENLABS_API_KEY ? 'configured' : 'missing'} · PUBLIC_URL ${env.PUBLIC_URL ?? '(unset)'}`);
   // Pre-generate the fixed Hindi prompts so the first call has no TTS delay.
-  void Promise.all([HI.record, HI.yesno, HI.bp, HI.emergency, HI.sent, HI.councilSent, HI.sorry, HI.notHeard].map(speech));
+  void Promise.all([HI.welcome(['नए मरीज़', 'सुनीता', 'रोहन']), HI.record, HI.yesno, HI.bp, HI.emergency, HI.sent, HI.councilSent, HI.sorry, HI.notHeard].map(speech));
+  // Warm the demo voice notes too, so the first rehearsal has no generation delay.
+  if (SANDBOX) for (const sc of ['maternal', 'pediatric'] as const) void fetch(`http://localhost:${PORT}/sim/demo-recording?scenario=${sc}`, { method: 'POST' }).catch(() => {});
 });
 
 export { server, PACK };

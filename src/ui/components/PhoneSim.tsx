@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { simDemoRecording, simRecording, simTwilio, TEL, type OutboxItem, type RemoteAgent } from '@/live/remote';
 import { Recorder } from '@/ui/voice';
 import { cx } from '@/ui/format';
+import { useDemo } from '@/ui/useAgent';
 
 /**
  * Sandbox phone: drives the telephony server exactly as Twilio would (same webhooks,
@@ -14,9 +15,9 @@ const DOCTOR = '+910000000002';
 type Role = 'worker' | 'hospital' | 'doctor';
 type WorkerTab = 'call' | 'whatsapp' | 'sms';
 
-export function PhoneSim({ remote }: { remote: RemoteAgent }) {
+export function PhoneSim({ remote, initialTab = 'call' }: { remote: RemoteAgent; initialTab?: WorkerTab }) {
   const [role, setRole] = useState<Role>('worker');
-  const [tab, setTab] = useState<WorkerTab>('call');
+  const [tab, setTab] = useState<WorkerTab>(initialTab);
   return (
     <div className="flex h-full min-h-0 flex-col items-center">
       <div className="mb-2 flex rounded-lg border border-line bg-white p-0.5 text-[11px] font-semibold">
@@ -52,7 +53,7 @@ export function PhoneSim({ remote }: { remote: RemoteAgent }) {
           <ChatView remote={remote} channel="whatsapp" phone={role === 'hospital' ? HOSPITAL : DOCTOR} counterpart />
         )}
       </div>
-      <div className="mt-2 text-center text-[10.5px] text-muted">Sandbox phone · same webhooks and TwiML as Twilio · switch to live with TELEPHONY_MODE=live</div>
+      <div className="mt-2 text-center text-[10.5px] text-muted">Same call and message flow as the real phone line (Twilio)</div>
     </div>
   );
 }
@@ -67,6 +68,7 @@ interface Step {
 }
 
 function CallView({ remote }: { remote: RemoteAgent }) {
+  const demo = useDemo();
   const [inCall, setInCall] = useState(false);
   const [lines, setLines] = useState<{ who: 'cg' | 'me'; text: string }[]>([]);
   const [step, setStep] = useState<Step>({ kind: 'none' });
@@ -204,9 +206,9 @@ function CallView({ remote }: { remote: RemoteAgent }) {
     await post(step.action!, { RecordingUrl: url });
   }
 
-  async function demoVoice() {
+  async function demoVoice(scenario: string) {
     setBusy(true);
-    const { url, text } = await simDemoRecording(remote.getState().scenario.id);
+    const { url, text } = await simDemoRecording(scenario);
     setLines((l) => [...l, { who: 'me', text: `🎙 “${text}”` }]);
     await post(step.action!, { RecordingUrl: url });
   }
@@ -240,9 +242,16 @@ function CallView({ remote }: { remote: RemoteAgent }) {
             <button onClick={recordVoice} disabled={busy} className={cx('rounded-xl py-2.5 text-sm font-bold text-white', recording ? 'recording bg-emergency' : 'bg-brand')}>
               {recording ? '■ Stop — send voice note' : '🎙 Speak (record voice note)'}
             </button>
-            <button onClick={demoVoice} disabled={busy || recording} className="rounded-xl border border-dashed border-brand py-2 text-xs font-semibold text-brand">
-              Use demo Hindi voice note
-            </button>
+            {demo && (
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => demoVoice('maternal')} disabled={busy || recording} className="rounded-xl border border-dashed border-brand py-2 text-[11px] font-semibold text-brand">
+                  Demo voice note: pregnant woman
+                </button>
+                <button onClick={() => demoVoice('pediatric')} disabled={busy || recording} className="rounded-xl border border-dashed border-brand py-2 text-[11px] font-semibold text-brand">
+                  Demo voice note: child
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -272,6 +281,7 @@ function CallView({ remote }: { remote: RemoteAgent }) {
 // ------------------------------------------------------------------ WhatsApp / SMS
 
 function ChatView({ remote, channel, phone, counterpart }: { remote: RemoteAgent; channel: 'whatsapp' | 'sms'; phone: string; counterpart?: boolean }) {
+  const demo = useDemo();
   const [mine, setMine] = useState<{ id: string; at: number; from: 'me' | 'cg'; text: string }[]>([]);
   const [text, setText] = useState('');
   const [, force] = useState(0);
@@ -300,9 +310,11 @@ function ChatView({ remote, channel, phone, counterpart }: { remote: RemoteAgent
     ? phone === HOSPITAL
       ? ['1 Bed ready in labour room', '2 No obstetrician today']
       : ['1 Ask about hearing problems; specialist referral appropriate', '2 Need more information', '3 Manage locally']
-    : channel === 'sms'
-      ? ['CG A:31 S:F P:34 C:severe_headache,swelling D:? BP:_', '166/108', '1']
-      : ['31 year old woman, 34 weeks pregnant, severe headache since morning and swelling', '166/108', '1', 'call'];
+    : !demo
+      ? ['call']
+      : channel === 'sms'
+        ? ['CG A:31 S:F P:34 C:severe_headache,swelling D:? BP:_', '166/108', '1']
+        : ['31 year old woman, 34 weeks pregnant, severe headache since morning and swelling', '166/108', '1', 'call'];
 
   return (
     <div className={cx('flex min-h-0 flex-1 flex-col', channel === 'whatsapp' ? 'bg-[#efeae2]' : 'bg-slate-50')}>

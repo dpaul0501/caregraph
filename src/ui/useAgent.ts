@@ -8,3 +8,7 @@ export function useAgent() {
   const state = useSyncExternalStore(agent.subscribe, agent.getState);
   return { agent, s: state };
 }
+
+/** Demo mode: offer the two scripted cases and their suggested answers. Off = any case. */
+export const DemoContext = createContext(true);
+export const useDemo = () => useContext(DemoContext);

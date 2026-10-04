@@ -3,14 +3,14 @@ import facilityData from '../data/facilities.json';
 import expertData from '../data/experts.json';
 import patientData from '../data/patients.json';
 import { factLabel } from '../data/factCatalog';
-import { SCENARIOS, type CouncilChoice, type ScenarioDef } from '../data/scenarios';
+import { PATHWAYS, SCENARIOS, type CouncilChoice, type ScenarioDef } from '../data/scenarios';
 import { extractCase, parseBP } from './extract';
 import { searchFacilities, type CapabilityDef, type Facility, type FacilitySearch } from './facilities';
 import { convokeCouncil, type Council, type Expert } from './experts';
 import { assessClusters, KG, type ClusterAssessment } from './kg';
 import { assessRisk, priorCalibration, type Calibration, type RiskAssessment } from './reasoner';
 import { MODELS } from './models';
-import { factsIn } from './logic';
+import { evaluate, factsIn } from './logic';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
 import { buildPacket, packetToText, type DecisionPacket } from './summary';
 import { escalationThreshold, hiddenEmergencyRisk, isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
@@ -403,6 +403,7 @@ export class CareGraphAgent {
         { evidence: 'FRONTLINE_REPORT' },
       );
       this.merge(ex.facts);
+      await this.choosePathway();
       this.go('ASSESSING', 'Structured case built', 'AGENT');
       await this.assess();
     });
@@ -422,12 +423,32 @@ export class CareGraphAgent {
       );
       this.merge(ex.facts);
       if (s.referralState === 'NEEDS_MORE_INFORMATION') {
+        await this.choosePathway();
         s.pendingQuestion = null;
         s.awaiting = null;
         this.go('ASSESSING', 'New information from health worker', 'CHW');
         await this.assess();
       } else this.emit();
     });
+  }
+
+  /** The agent chooses the clinical pathway from the facts (not from a pre-selected scenario). */
+  private async choosePathway() {
+    const s = this.s;
+    const chosen = await this.tool(
+      'select_pathway',
+      `${PATHWAYS.length} pathways`,
+      () => PATHWAYS.find((p) => p.id !== 'general_danger_signs_v1' && evaluate(p.applies_when, s.facts) === 'TRUE') ?? PATHWAYS[PATHWAYS.length - 1],
+      (p) =>
+        p.id === 'general_danger_signs_v1'
+          ? 'no specific pathway applies → general WHO danger-sign screen (never force-fit)'
+          : `${p.title} (${p.id} v${p.version})`,
+      { evidence: 'VERIFIED_CLINICAL' },
+    );
+    if (chosen.id !== s.protocol.id) {
+      s.protocol = chosen;
+      s.ranking = [];
+    }
   }
 
   answer(questionId: string, a: { bp: string } | { outcome: number } | { unknown: true }) {
