@@ -234,7 +234,7 @@ Rule: **claim only what is wired in by submission time.** Everything else goes o
 | 7 | Deploy to Lovable (GitHub sync, Cloud secret) | Shareable link for judges | 1 h |
 | 8 | Calibration-loop demo (§8) | Learnability differentiator | 2–3 h |
 | 9 | Bright Data "verify source" | Sponsor plus provenance story | 1.5 h |
-| 10 | Video + submission text + slides | Required | 2 h, in parallel |
+| 10 | Video + submission text + slides (Feven) | Required | 2 h, in parallel |
 
 Cut line if time runs short: ship tasks 1–7 and 10; tasks 8 and 9 go on the roadmap slide.
 
