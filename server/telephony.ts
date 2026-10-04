@@ -226,7 +226,9 @@ async function speech(text: string): Promise<string> {
 }
 
 const HI = {
-  welcome: (names: string[]) => `नमस्ते, यह केयरग्राफ है। ${names.map((n, i) => `${n} के लिए ${i + 1} दबाएँ।`).join(' ')}`,
+  welcome: 'नमस्ते, यह केयरग्राफ है। मरीज़ की आईडी डालकर हैश दबाएँ। नए मरीज़ के लिए सिर्फ़ हैश दबाएँ।',
+  notFound: 'यह आईडी नहीं मिली। नए मरीज़ की तरह आगे बढ़ते हैं।',
+  found: (name: string) => `${name} का रिकॉर्ड मिल गया।`,
   record: 'बीप के बाद मरीज़ के बारे में बताइए। बोलना ख़त्म होने पर हैश दबाएँ।',
   yesno: 'हाँ के लिए 1, नहीं के लिए 2, पता नहीं हो तो 9 दबाएँ।',
   options: (labels: string[]) => `${labels.map((l, i) => `${l} के लिए ${i + 1}`).join(', ')}, पता नहीं हो तो 9 दबाएँ।`,
@@ -242,6 +244,8 @@ const HI = {
 
 const BN: typeof HI = {
   welcome: HI.welcome,
+  notFound: 'এই আইডি পাওয়া যায়নি। নতুন রোগী হিসেবে এগোচ্ছি।',
+  found: (name: string) => `${name}-এর রেকর্ড পাওয়া গেছে।`,
   record: 'বিপের পরে রোগীর কথা বলুন। শেষ হলে হ্যাশ চাপুন।',
   yesno: 'হ্যাঁ হলে 1, না হলে 2, জানা না থাকলে 9 চাপুন।',
   options: (labels: string[]) => `${labels.map((l, i) => `${l} হলে ${i + 1}`).join(', ')}, জানা না থাকলে 9 চাপুন।`,
@@ -256,6 +260,13 @@ const BN: typeof HI = {
 };
 /** Prompts in the language of the case (detected from the worker's voice note). */
 const P = (live: Live) => (live.agent.getState().lang === 'bn' ? BN : HI);
+
+/** Register lookup: a registered patient's ID loads their record (history, last BP, missed visits). */
+function patientById(id: string): { scenario: ScenarioDef['id']; name: string } | null {
+  const sc = Object.values(SCENARIOS).find((x) => x.patientId !== 'PT-NEW' && x.patientId.replace(/\D/g, '').replace(/^0+/, '') === id.replace(/^0+/, ''));
+  if (!sc) return null;
+  return { scenario: sc.id, name: sc.id === 'maternal' ? 'सुनीता' : 'रोहन' };
+}
 
 function twiml(inner: string) {
   return `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
@@ -288,13 +299,15 @@ async function nextVoiceStep(live: Live, prefix = ''): Promise<string> {
 async function voice(path: string, p: Record<string, string>, q: URLSearchParams): Promise<string> {
   const key = q.get('k') ?? `call:${p.CallSid}`;
   if (path === '/twilio/voice') {
-    const names = ['नए मरीज़', 'सुनीता', 'रोहन'];
-    return twiml(`<Gather input="dtmf" numDigits="1" timeout="8" action="/twilio/voice/patient?k=${encodeURIComponent(key)}">${await speech(HI.welcome(names))}</Gather><Redirect>/twilio/voice</Redirect>`);
+    return twiml(`<Gather input="dtmf" finishOnKey="#" timeout="10" action="/twilio/voice/patient?k=${encodeURIComponent(key)}">${await speech(HI.welcome)}</Gather><Redirect>/twilio/voice</Redirect>`);
   }
   if (path === '/twilio/voice/patient') {
-    const scenario = (p.Digits === '2' ? 'maternal' : p.Digits === '3' ? 'pediatric' : 'open') as ScenarioDef['id'];
-    newSession(key, 'voice', norm(p.From), scenario);
-    return twiml(`${await speech(HI.record)}<Record maxLength="45" timeout="4" finishOnKey="#" playBeep="true" trim="trim-silence" action="/twilio/voice/intake?k=${encodeURIComponent(key)}"/>`);
+    // Patient register lookup by ID (keypad). No ID = new patient.
+    const id = (p.Digits ?? '').replace(/\D/g, '');
+    const hit = id ? patientById(id) : null;
+    newSession(key, 'voice', norm(p.From), hit?.scenario ?? 'open');
+    const pre = id ? await speech(hit ? HI.found(hit.name) : HI.notFound) : '';
+    return twiml(`${pre}${await speech(HI.record)}<Record maxLength="45" timeout="4" finishOnKey="#" playBeep="true" trim="trim-silence" action="/twilio/voice/intake?k=${encodeURIComponent(key)}"/>`);
   }
   const live = sessions.get(key);
   if (!live) return twiml(`<Redirect>/twilio/voice</Redirect>`);
@@ -352,7 +365,7 @@ async function voice(path: string, p: Record<string, string>, q: URLSearchParams
 // ------------------------------------------------------------------ WhatsApp / SMS
 async function message(channel: 'whatsapp' | 'sms', p: Record<string, string>): Promise<string> {
   const from = norm(p.From);
-  const body = (p.Body ?? '').trim();
+  let body = (p.Body ?? '').trim();
   const pending = waiting.get(`${from}|${ctx.getStore()?.client ?? ''}`);
   if (pending) {
     pending.resolve(body);
@@ -367,8 +380,12 @@ async function message(channel: 'whatsapp' | 'sms', p: Record<string, string>): 
   const key = `${channel}:${from}`;
   let live = sessions.get(key);
   const restart = /^(new|start|cg\b|hi$|hello$|namaste)/i.test(body);
-  if (!live || restart || live.agent.getState().awaiting === 'DONE') {
-    live = newSession(key, channel, from, 'open');
+  const idMsg = /^(?:id\s*)?#?(\d{3,4})\b[\s,:-]*(.*)$/is.exec(body);
+  const idHit = idMsg ? patientById(idMsg[1]) : null;
+  if (!live || restart || idHit || live.agent.getState().awaiting === 'DONE') {
+    live = newSession(key, channel, from, idHit?.scenario ?? 'open');
+    if (idHit && !idMsg![2]) return reply(`Record found: ${live.agent.getState().patient.display_name}. Describe the problem in your own words.`);
+    if (idHit) body = idMsg![2];
     if (/^(new|start|hi|hello|namaste)$/i.test(body)) return reply(GUIDE);
   }
   const s = live.agent.getState();
@@ -579,7 +596,7 @@ function json(res: ServerResponse, body: unknown, status = 200) {
 server.listen(PORT, () => {
   console.log(`CareGraph telephony on :${PORT} · mode ${MODE.toUpperCase()} · Twilio ${SID ? 'configured' : 'missing'} · ElevenLabs ${VOICE_ENV.ELEVENLABS_API_KEY ? 'configured' : 'missing'} · PUBLIC_URL ${env.PUBLIC_URL ?? '(unset)'}`);
   // Pre-generate the fixed Hindi prompts so the first call has no TTS delay.
-  void Promise.all([HI.welcome(['नए मरीज़', 'सुनीता', 'रोहन']), HI.record, HI.yesno, HI.bp, HI.emergency, HI.sent, HI.councilSent, HI.sorry, HI.notHeard].map(speech));
+  void Promise.all([HI.welcome, HI.notFound, HI.found('सुनीता'), HI.found('रोहन'), HI.record, HI.yesno, HI.bp, HI.emergency, HI.sent, HI.councilSent, HI.sorry, HI.notHeard].map(speech));
   // Warm the demo voice notes too, so the first rehearsal has no generation delay.
   if (SANDBOX) for (const sc of ['maternal', 'pediatric'] as const) void fetch(`http://localhost:${PORT}/sim/demo-recording?scenario=${sc}`, { method: 'POST' }).catch(() => {});
 });

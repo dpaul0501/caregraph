@@ -266,6 +266,7 @@ function CallView({ remote }: { remote: RemoteAgent }) {
         ) : (
           <>
             <div className="mb-1.5 h-5 text-center font-mono text-sm">{digits.replace('*', ' / ')}</div>
+            {demo && <div className="mb-1.5 text-center text-[10.5px] text-muted">Patient IDs on the register: 0417 · 0882 — or just # for a new patient</div>}
             <div className="grid grid-cols-3 gap-1.5">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => (
                 <button
@@ -324,7 +325,7 @@ function ChatView({ remote, channel, phone, counterpart }: { remote: RemoteAgent
       ? ['call']
       : channel === 'sms'
         ? ['CG A:31 S:F P:34 C:severe_headache,swelling D:? BP:_', '166/108', '1']
-        : ['31 year old woman, 34 weeks pregnant, severe headache since morning and swelling', '166/108', '1', 'call'];
+        : ['0417 severe headache since morning and swelling', 'Woman, 34 weeks pregnant, severe headache and swelling', '166/108', '1', 'call'];
 
   return (
     <div className={cx('flex min-h-0 flex-1 flex-col', channel === 'whatsapp' ? 'bg-[#efeae2]' : 'bg-slate-50')}>
