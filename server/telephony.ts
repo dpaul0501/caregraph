@@ -80,6 +80,7 @@ function newSession(key: string, channel: Channel, phone: string, scenario: Scen
   for (const [k, l] of sessions) if (l.owner && Date.now() - l.startedAt > 2 * 3600_000) sessions.delete(k);
   const agent = new CareGraphAgent(scenario, 'hi');
   agent.speed = 0.25; // keep simulated transport visible but quick
+  if (channel === 'web') agent.setOption('acceptance', 'realistic'); // hospitals reply per their live acceptance pattern
   // Web cases have no hospital/doctor phones on screen: their counterpart replies are automatic.
   const humans = channel !== 'web';
   agent.integrations = {

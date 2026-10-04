@@ -215,7 +215,23 @@ describe('maternal end-to-end (demo case A)', () => {
     const s = a.getState();
     expect(s.transfer?.escalated).toBe(true);
     expect(s.transfer?.status).toBe('ACCEPTED');
-    expect(s.audit.some((e) => /No response in 5 min/.test(e.title))).toBe(true);
+    // Every capable facility was tried before escalating.
+    expect(s.audit.filter((e) => /^No reply from .* in 5 min/.test(e.title)).length).toBe(3);
+    expect(s.audit.some((e) => /Escalated to District referral desk/.test(e.title))).toBe(true);
+  });
+
+  it('a hospital that declines → CareGraph immediately tries the next capable one', async () => {
+    const a = agent('maternal');
+    a.setOption('acceptance', 'decline-first');
+    await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
+    await a.answer('q_bp', { bp: '166/108' });
+    await a.authorizeTransfer();
+    const s = a.getState();
+    expect(s.audit.some((e) => e.title === 'District Hospital Barhi cannot accept')).toBe(true);
+    expect(s.facilitySearch?.selectedId).toBe('mch-gaya');
+    expect(s.transfer?.status).toBe('ACCEPTED');
+    expect(s.transport.state).toBe('ARRIVED_AT_FACILITY');
+    expect(s.messages.some((m) => /Trying the next capable facility: Govt. Medical College Hospital/.test(m.text))).toBe(true);
   });
 });
 

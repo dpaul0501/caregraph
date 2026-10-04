@@ -5,7 +5,7 @@ import patientData from '../data/patients.json';
 import { factLabel } from '../data/factCatalog';
 import { PATHWAYS, SCENARIOS, type CouncilChoice, type ScenarioDef } from '../data/scenarios';
 import { extractCase, parseBP } from './extract';
-import { searchFacilities, type CapabilityDef, type Facility, type FacilitySearch } from './facilities';
+import { searchFacilities, type CapabilityDef, type Facility, type FacilityCandidate, type FacilitySearch } from './facilities';
 import { convokeCouncil, type Council, type Expert } from './experts';
 import { assessClusters, KG, type ClusterAssessment } from './kg';
 import { assessRisk, priorCalibration, type Calibration, type RiskAssessment } from './reasoner';
@@ -134,7 +134,7 @@ export interface Session {
   uncertainty: UncertaintyDim[];
   audit: AuditEvent[];
   intakeSource: string | null;
-  options: { facilityNoResponse: boolean };
+  options: { facilityNoResponse: boolean; acceptance: 'always' | 'realistic' | 'decline-first' };
 }
 
 const patients = patientData.patients as unknown as Patient[];
@@ -241,7 +241,7 @@ export class CareGraphAgent {
   humanTimeoutMs = 120_000;
 
   constructor(scenarioId: ScenarioDef['id'] = 'maternal', lang: Lang = 'en') {
-    this.s = freshSession(scenarioId, lang, { facilityNoResponse: false });
+    this.s = freshSession(scenarioId, lang, { facilityNoResponse: false, acceptance: 'always' });
     this.snap = { ...this.s };
   }
 
@@ -882,7 +882,7 @@ export class CareGraphAgent {
       const s = this.s;
       s.awaiting = null;
       const triage = s.triage!;
-      const sel = s.facilitySearch!.candidates.find((c) => c.facility.id === s.facilitySearch!.selectedId)!;
+      let sel = s.facilitySearch!.candidates.find((c) => c.facility.id === s.facilitySearch!.selectedId)!;
       const urgent = LEVEL_RANK[triage.level] >= LEVEL_RANK.URGENT;
       const policy = (PACK.escalation_policy as Record<string, { facility_response_min: number; escalate_to: string }>)[triage.level] ?? {
         facility_response_min: 120,
@@ -895,42 +895,58 @@ export class CareGraphAgent {
         detail: `${s.worker.name} (${PACK.emergency.authorization_roles[0]})${urgent ? ` · confirm: ${PACK.emergency.authorization_roles[1]} (simulated)` : ''}`,
       });
       this.tick(0.5);
-      await this.tool('request_transfer', `${sel.facility.id}, packet`, () => true, () => `sent to ${sel.facility.name} · response due in ${policy.facility_response_min} min`, { evidence: 'SIMULATED_OPERATIONAL' });
-      s.transfer = { facilityId: sel.facility.id, requestedAt: s.clock, deadlineAt: s.clock + policy.facility_response_min, status: 'PENDING', escalated: false };
-      this.go('TRANSFER_REQUESTED', `To ${sel.facility.name}`, 'AGENT');
-      this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `Referral network → ${sel.facility.name}` });
-      if (urgent) {
-        await this.tool('request_transport', `${s.caseId}`, () => true, () => `${PACK.emergency.ambulance_service} — requested in parallel; acceptance does not delay dispatch`, { evidence: 'SIMULATED_OPERATIONAL' });
-        this.transport('REQUESTED', PACK.emergency.ambulance_service);
-      }
-      this.focus('Human acknowledgement — receiving facility', 'track_referral', `Response window ${policy.facility_response_min} min; then escalate to ${policy.escalate_to}.`);
-
-      let real: Awaited<ReturnType<NonNullable<Integrations['requestAcceptance']>>> = null;
-      if (this.integrations.requestAcceptance && !s.options.facilityNoResponse) {
-        this.say({ role: 'system', kind: 'info', text: `Waiting for ${sel.facility.name} to reply on WhatsApp (1 = ACCEPT, 2 = CANNOT)…` });
-        real = await this.integrations.requestAcceptance({
-          caseId: s.caseId,
-          facilityName: sel.facility.name,
-          packetText: packetToText(s.packet!),
-          timeoutMs: Math.min(this.humanTimeoutMs, policy.facility_response_min * 60_000),
-        });
-        if (real && !real.accepted) {
-          this.audit({ actor: 'FACILITY', kind: 'HUMAN', title: `${sel.facility.name} cannot accept`, detail: real.text });
-          this.say({ role: 'facility', text: real.text, via: `${real.by} · ${real.role}` });
-          this.say({ role: 'system', kind: 'alert', text: `${sel.facility.name} cannot accept. Escalating to ${policy.escalate_to} for the backup destination.` });
+      // Work through the top places in order: a decline or no reply moves to the next one.
+      const fs = s.facilitySearch!;
+      const order = [fs.selectedId!, ...fs.top.filter((id) => id !== fs.selectedId)]
+        .map((id) => fs.candidates.find((c) => c.facility.id === id))
+        .filter((c): c is FacilityCandidate => !!c)
+        .slice(0, 3);
+      let acceptedBy: { by: string; role: string; text: string } | null = null;
+      for (let attempt = 0; attempt < order.length && !acceptedBy; attempt++) {
+        sel = order[attempt];
+        if (attempt > 0) {
+          s.facilitySearch = { ...fs, selectedId: sel.facility.id };
+          this.go('FACILITY_SEARCH', `Re-route: next capable facility ${sel.facility.name}`, 'AGENT');
+          s.packet = this.makePacket('TRANSFER', undefined, urgent ? `ETA ${sel.etaMin} min by ambulance (${sel.roadKm} km)` : undefined);
+          this.say({ role: 'agent', kind: 'info', text: `Trying the next capable facility: ${sel.facility.name} (${sel.roadKm} km, ~${sel.etaMin} min).` });
         }
-      } else await this.pause(1800);
-      if (s.options.facilityNoResponse || (this.integrations.requestAcceptance && (!real || !real.accepted))) {
-        this.tick(policy.facility_response_min);
-        s.transfer = { ...s.transfer!, escalated: true };
-        this.audit({ actor: 'SYSTEM', kind: 'DECISION', title: `No response in ${policy.facility_response_min} min → escalate`, detail: `Escalated to ${policy.escalate_to}` });
-        this.say({ role: 'system', kind: 'alert', text: `No response from ${sel.facility.name} within ${policy.facility_response_min} min. Escalated automatically to ${policy.escalate_to}.` });
+        await this.tool('request_transfer', `${sel.facility.id}, packet`, () => true, () => `sent to ${sel.facility.name} (attempt ${attempt + 1}) · reply due in ${policy.facility_response_min} min`, { evidence: 'SIMULATED_OPERATIONAL' });
+        s.transfer = { facilityId: sel.facility.id, requestedAt: s.clock, deadlineAt: s.clock + policy.facility_response_min, status: 'PENDING', escalated: false };
+        this.go('TRANSFER_REQUESTED', `To ${sel.facility.name}`, 'AGENT');
+        this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `Referral network → ${sel.facility.name}` });
+        if (urgent && attempt === 0) {
+          await this.tool('request_transport', `${s.caseId}`, () => true, () => `${PACK.emergency.ambulance_service} — requested in parallel; acceptance does not delay dispatch`, { evidence: 'SIMULATED_OPERATIONAL' });
+          this.transport('REQUESTED', PACK.emergency.ambulance_service);
+        }
+        this.focus('Human acknowledgement — receiving facility', 'track_referral', `Reply window ${policy.facility_response_min} min; a decline or silence moves to the next capable facility.`);
+        const reply = await this.askFacility(sel, policy.facility_response_min, attempt);
+        if (reply?.accepted) {
+          this.tick(urgent ? 3.5 : 25);
+          acceptedBy = reply;
+        } else if (reply) {
+          this.tick(2);
+          this.audit({ actor: 'FACILITY', kind: 'HUMAN', title: `${sel.facility.name} cannot accept`, detail: reply.text });
+          this.say({ role: 'facility', text: reply.text, via: `${reply.by} · ${reply.role}` });
+        } else {
+          this.tick(policy.facility_response_min);
+          this.audit({ actor: 'SYSTEM', kind: 'DECISION', title: `No reply from ${sel.facility.name} in ${policy.facility_response_min} min`, detail: 'Moving to the next capable facility' });
+          this.say({ role: 'system', kind: 'alert', text: `No reply from ${sel.facility.name} within ${policy.facility_response_min} min.` });
+        }
+      }
+      if (!acceptedBy) {
+        // Every capable facility declined or stayed silent: the district referral desk places the patient.
+        sel = order[0];
+        s.facilitySearch = { ...fs, selectedId: sel.facility.id };
+        s.transfer = { ...s.transfer!, facilityId: sel.facility.id, escalated: true };
+        this.audit({ actor: 'SYSTEM', kind: 'DECISION', title: `Escalated to ${policy.escalate_to}`, detail: `${order.length} facilities tried` });
+        this.say({ role: 'system', kind: 'alert', text: `${order.length} facilities could not take her. Escalated automatically to ${policy.escalate_to}.` });
         await this.pause(1500);
         this.tick(2);
-      } else this.tick(urgent ? 3.5 : 25);
+        acceptedBy = { by: policy.escalate_to, role: sel.facility.name, text: `ACCEPT — bed arranged at ${sel.facility.name} by the ${policy.escalate_to.toLowerCase()}.` };
+      }
 
-      const fr = real && real.accepted ? { ...s.scenario.facilityResponse, by: real.by, role: real.role, text: real.text } : s.scenario.facilityResponse;
-      const by = s.transfer!.escalated ? `${policy.escalate_to} for ${fr.by}` : fr.by;
+      const fr = { ...s.scenario.facilityResponse, ...acceptedBy };
+      const by = fr.by;
       s.transfer = { ...s.transfer!, status: 'ACCEPTED', response: { by, role: fr.role, text: fr.text, at: s.clock } };
       this.integrations.notifyWorker?.(
         `CareGraph ${s.caseId}: ${sel.facility.name} ACCEPTED (${by}). ${urgent ? 'Ambulance requested (108). ' : ''}Go to: ${sel.facility.name}, ${sel.roadKm} km, ~${sel.etaMin} min.`,
@@ -972,6 +988,28 @@ export class CareGraphAgent {
       this.focus('Loop not closed — awaiting counter-referral', 'track_referral', 'Outcome must flow back to the community record.');
       s.awaiting = 'COUNTER_REFERRAL';
     });
+  }
+
+  /** Ask one facility to accept: a real human (WhatsApp/phone) when connected, otherwise the facility's own acceptance pattern. */
+  private async askFacility(c: FacilityCandidate, replyWindowMin: number, attempt: number): Promise<{ accepted: boolean; by: string; role: string; text: string } | null> {
+    const s = this.s;
+    if (s.options.facilityNoResponse) {
+      await this.pause(1200);
+      return null;
+    }
+    if (this.integrations.requestAcceptance) {
+      this.say({ role: 'system', kind: 'info', text: `Waiting for ${c.facility.name} to reply (1 = ACCEPT, 2 = CANNOT)…` });
+      return this.integrations.requestAcceptance({ caseId: s.caseId, facilityName: c.facility.name, packetText: packetToText(s.packet!), timeoutMs: Math.min(this.humanTimeoutMs, replyWindowMin * 60_000) });
+    }
+    await this.pause(1600);
+    const mode = s.options.acceptance;
+    const accept = mode === 'always' ? true : mode === 'decline-first' ? attempt > 0 : Math.random() < (c.facility.acceptance_rate ?? 0.8);
+    if (accept) {
+      const fr = s.scenario.facilityResponse;
+      return attempt === 0 ? { accepted: true, by: fr.by, role: `${fr.role}`, text: fr.text } : { accepted: true, by: 'Duty doctor', role: c.facility.name, text: 'ACCEPT. Send the patient; team informed.' };
+    }
+    const reasons = ['Labour ward full right now', 'Operating theatre occupied — emergency in progress', 'No anaesthetist free for the next two hours'];
+    return { accepted: false, by: 'Duty desk', role: c.facility.name, text: `CANNOT ACCEPT — ${reasons[(attempt + c.facility.name.length) % reasons.length]}.` };
   }
 
   recordCounterReferral() {

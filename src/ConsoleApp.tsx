@@ -16,6 +16,7 @@ import { PhoneSim } from '@/ui/components/PhoneSim';
 // Keep the live session across hot-module reloads during development.
 const agent: CareGraphAgent = import.meta.hot?.data?.agent ?? new CareGraphAgent('open');
 const remote: RemoteAgent = import.meta.hot?.data?.remote ?? new RemoteAgent();
+agent.setOption('acceptance', 'realistic');
 if (import.meta.hot?.data) {
   import.meta.hot.data.agent = agent;
   import.meta.hot.data.remote = remote;

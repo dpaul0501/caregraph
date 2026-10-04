@@ -32,7 +32,8 @@
           "road_km": 11,
           "eta_min": 22
         }
-      }
+      },
+      "acceptance_rate": 0.8
     },
     {
       "id": "phc-kheri",
@@ -65,7 +66,8 @@
           "road_km": 9,
           "eta_min": 18
         }
-      }
+      },
+      "acceptance_rate": 0.85
     },
     {
       "id": "phc-dhanpur",
@@ -95,7 +97,8 @@
           "road_km": 2,
           "eta_min": 6
         }
-      }
+      },
+      "acceptance_rate": 0.8
     },
     {
       "id": "nh-shanti",
@@ -126,7 +129,8 @@
           "road_km": 19,
           "eta_min": 36
         }
-      }
+      },
+      "acceptance_rate": 0.5
     },
     {
       "id": "chc-sonpur",
@@ -163,7 +167,8 @@
           "road_km": 24,
           "eta_min": 44
         }
-      }
+      },
+      "acceptance_rate": 0.6
     },
     {
       "id": "dh-barhi",
@@ -203,7 +208,8 @@
           "road_km": 27,
           "eta_min": 47
         }
-      }
+      },
+      "acceptance_rate": 0.7
     },
     {
       "id": "chc-mahua",
@@ -235,7 +241,8 @@
           "road_km": 17,
           "eta_min": 31
         }
-      }
+      },
+      "acceptance_rate": 0.8
     },
     {
       "id": "sdh-nawada",
@@ -270,7 +277,8 @@
           "road_km": 33,
           "eta_min": 58
         }
-      }
+      },
+      "acceptance_rate": 0.2
     },
     {
       "id": "mch-gaya",
@@ -314,7 +322,8 @@
           "road_km": 41,
           "eta_min": 74
         }
-      }
+      },
+      "acceptance_rate": 0.9
     },
     {
       "id": "uphc-barhi",
@@ -343,7 +352,8 @@
           "road_km": 26,
           "eta_min": 45
         }
-      }
+      },
+      "acceptance_rate": 0.8
     },
     {
       "id": "mh-sonpur",
@@ -377,7 +387,8 @@
           "road_km": 25,
           "eta_min": 46
         }
-      }
+      },
+      "acceptance_rate": 0.75
     },
     {
       "id": "sc-dhanpur",
@@ -406,7 +417,8 @@
           "road_km": 1,
           "eta_min": 3
         }
-      }
+      },
+      "acceptance_rate": 0.8
     }
   ]
 }

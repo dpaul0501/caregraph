@@ -15,6 +15,8 @@ export interface Facility {
   acceptance: 'ACCEPTING' | 'DIVERTING' | 'UNKNOWN';
   status_updated_min_ago: number;
   beds_note: string;
+  /** Share of transfer requests this facility accepts (from the status feed; learnable from outcomes). */
+  acceptance_rate?: number;
   lat: number;
   lng: number;
   travel: Record<string, { road_km: number; eta_min: number }>;
