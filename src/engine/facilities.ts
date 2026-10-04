@@ -49,6 +49,8 @@ export interface FacilitySearch {
   candidates: FacilityCandidate[]; // sorted by ETA
   selectedId: string | null;
   backupId: string | null;
+  /** Top places to go for resolution: eligible first (by ETA), then uncertain ("confirm by phone"). */
+  top: string[];
 }
 
 const STALE_AFTER_MIN = 120;
@@ -114,8 +116,10 @@ export function searchFacilities(
     .map((f) => evaluateFacility(f, cap, origin))
     .sort((a, b) => a.etaMin - b.etaMin);
   const eligible = candidates.filter((c) => c.eligibility === 'ELIGIBLE');
+  const uncertain = candidates.filter((c) => c.eligibility === 'UNCERTAIN');
   const selected = eligible[0] ?? null;
-  const backup = eligible[1] ?? candidates.find((c) => c.eligibility === 'UNCERTAIN') ?? null;
+  const backup = eligible[1] ?? uncertain[0] ?? null;
+  const top = [...eligible, ...uncertain].slice(0, 3).map((c) => c.facility.id);
   return {
     capabilityId,
     capability: cap,
@@ -123,5 +127,6 @@ export function searchFacilities(
     candidates,
     selectedId: selected?.facility.id ?? null,
     backupId: backup?.facility.id ?? null,
+    top,
   };
 }

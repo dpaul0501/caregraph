@@ -9,19 +9,30 @@
     "WHO IMCI / child health referral principles (generic baseline)",
     "Demo adaptation: national child-health screening (RBSK-style) referral to District Early Intervention Centre"
   ],
-  "applies_when": { "fact": "recurrent_fracture", "eq": true },
+  "applies_when": {
+    "fact": "recurrent_fracture",
+    "eq": true
+  },
   "default_level": "ROUTINE",
   "default_action": "Routine follow-up; reassess after any further fracture",
   "default_capability": null,
   "decision_facts": [
-    "recurrent_fracture", "low_trauma", "acute_deformity", "short_stature",
-    "blue_sclera", "family_history_fractures", "hearing_impairment"
+    "recurrent_fracture",
+    "low_trauma",
+    "acute_deformity",
+    "short_stature",
+    "blue_sclera",
+    "family_history_fractures",
+    "hearing_impairment"
   ],
   "rules": [
     {
       "id": "P-01",
       "title": "Fresh fracture with deformity or open wound",
-      "when": { "fact": "acute_deformity", "eq": true },
+      "when": {
+        "fact": "acute_deformity",
+        "eq": true
+      },
       "level": "URGENT",
       "action": "Same-day fracture care",
       "required_capability": "fracture_care",
@@ -34,7 +45,18 @@
     {
       "id": "P-02",
       "title": "Recurrent low-trauma fractures in a child",
-      "when": { "all": [ { "fact": "recurrent_fracture", "eq": true }, { "fact": "low_trauma", "eq": true } ] },
+      "when": {
+        "all": [
+          {
+            "fact": "recurrent_fracture",
+            "eq": true
+          },
+          {
+            "fact": "low_trauma",
+            "eq": true
+          }
+        ]
+      },
       "level": "PRIORITY",
       "action": "Non-urgent pediatric evaluation for bone fragility",
       "required_capability": "pediatric_bone_eval",
@@ -47,21 +69,44 @@
     {
       "id": "P-03",
       "title": "Recurrent low-trauma fractures with associated features",
-      "when": { "all": [
-        { "fact": "recurrent_fracture", "eq": true },
-        { "fact": "low_trauma", "eq": true },
-        { "any": [
-          { "fact": "blue_sclera", "eq": true },
-          { "fact": "family_history_fractures", "eq": true },
-          { "fact": "hearing_impairment", "eq": true }
-        ] }
-      ] },
+      "when": {
+        "all": [
+          {
+            "fact": "recurrent_fracture",
+            "eq": true
+          },
+          {
+            "fact": "low_trauma",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "blue_sclera",
+                "eq": true
+              },
+              {
+                "fact": "family_history_fractures",
+                "eq": true
+              },
+              {
+                "fact": "hearing_impairment",
+                "eq": true
+              }
+            ]
+          }
+        ]
+      },
       "level": "PRIORITY",
       "action": "Non-urgent referral to pediatric genetics / bone clinic",
       "required_capability": "pediatric_genetics_eval",
       "stop_questioning": false,
       "requires_peer_review": true,
-      "expertise": ["Pediatrics", "Clinical genetics"],
+      "expertise": [
+        "Pediatrics",
+        "Orthopaedics",
+        "Clinical genetics"
+      ],
       "source": {
         "baseline": "Associated features (blue sclera, family history, hearing loss) suggest a heritable bone-fragility pathway",
         "local": "IN-DEMO pack §7.4: pathway confirmation by pediatrician before tertiary referral"
@@ -71,7 +116,9 @@
   "questions": [
     {
       "id": "q_trauma",
-      "facts": ["low_trauma"],
+      "facts": [
+        "low_trauma"
+      ],
       "text": {
         "en": "Did these fractures happen after a big fall or accident — or with very little force?",
         "hi": "क्या ये हड्डियाँ किसी बड़ी चोट या दुर्घटना से टूटीं — या बहुत हल्की चोट से?",
@@ -80,13 +127,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Little force", "values": { "low_trauma": true }, "prior": 0.7 },
-        { "label": "Significant trauma", "values": { "low_trauma": false }, "prior": 0.3 }
+        {
+          "label": "Little force",
+          "values": {
+            "low_trauma": true
+          },
+          "prior": 0.7
+        },
+        {
+          "label": "Significant trauma",
+          "values": {
+            "low_trauma": false
+          },
+          "prior": 0.3
+        }
       ]
     },
     {
       "id": "q_acute",
-      "facts": ["acute_deformity"],
+      "facts": [
+        "acute_deformity"
+      ],
       "text": {
         "en": "Is there a fresh injury now — a bent limb or an open wound?",
         "hi": "क्या अभी कोई ताज़ा चोट है — मुड़ा हुआ हाथ/पैर या खुला घाव?",
@@ -95,13 +156,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "acute_deformity": true }, "prior": 0.05 },
-        { "label": "No", "values": { "acute_deformity": false }, "prior": 0.95 }
+        {
+          "label": "Yes",
+          "values": {
+            "acute_deformity": true
+          },
+          "prior": 0.05
+        },
+        {
+          "label": "No",
+          "values": {
+            "acute_deformity": false
+          },
+          "prior": 0.95
+        }
       ]
     },
     {
       "id": "q_sclera",
-      "facts": ["blue_sclera"],
+      "facts": [
+        "blue_sclera"
+      ],
       "text": {
         "en": "Look at the whites of his eyes. Do they look blue or grey?",
         "hi": "उसकी आँखों के सफ़ेद हिस्से को देखिए। क्या वह नीला या स्लेटी दिखता है?",
@@ -110,16 +185,40 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "blue_sclera": true }, "prior": 0.3 },
-        { "label": "No", "values": { "blue_sclera": false }, "prior": 0.7 }
+        {
+          "label": "Yes",
+          "values": {
+            "blue_sclera": true
+          },
+          "prior": 0.3
+        },
+        {
+          "label": "No",
+          "values": {
+            "blue_sclera": false
+          },
+          "prior": 0.7
+        }
       ],
       "prior_modifiers": [
-        { "when": { "fact": "short_stature", "eq": true }, "priors": [0.45, 0.55], "reason": "Short stature reported with recurrent fractures" }
+        {
+          "when": {
+            "fact": "short_stature",
+            "eq": true
+          },
+          "priors": [
+            0.45,
+            0.55
+          ],
+          "reason": "Short stature reported with recurrent fractures"
+        }
       ]
     },
     {
       "id": "q_family",
-      "facts": ["family_history_fractures"],
+      "facts": [
+        "family_history_fractures"
+      ],
       "text": {
         "en": "Has anyone in the family had many broken bones?",
         "hi": "क्या परिवार में किसी की हड्डियाँ बार-बार टूटी हैं?",
@@ -128,13 +227,27 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "family_history_fractures": true }, "prior": 0.3 },
-        { "label": "No", "values": { "family_history_fractures": false }, "prior": 0.7 }
+        {
+          "label": "Yes",
+          "values": {
+            "family_history_fractures": true
+          },
+          "prior": 0.3
+        },
+        {
+          "label": "No",
+          "values": {
+            "family_history_fractures": false
+          },
+          "prior": 0.7
+        }
       ]
     },
     {
       "id": "q_hearing",
-      "facts": ["hearing_impairment"],
+      "facts": [
+        "hearing_impairment"
+      ],
       "text": {
         "en": "Does he have any problems with hearing?",
         "hi": "क्या उसे सुनने में कोई परेशानी है?",
@@ -143,8 +256,20 @@
       "answer_type": "yesno",
       "time_cost_min": 0.5,
       "outcomes": [
-        { "label": "Yes", "values": { "hearing_impairment": true }, "prior": 0.2 },
-        { "label": "No", "values": { "hearing_impairment": false }, "prior": 0.8 }
+        {
+          "label": "Yes",
+          "values": {
+            "hearing_impairment": true
+          },
+          "prior": 0.2
+        },
+        {
+          "label": "No",
+          "values": {
+            "hearing_impairment": false
+          },
+          "prior": 0.8
+        }
       ]
     }
   ]

@@ -4,41 +4,42 @@ import { clockLabel, cx } from '@/ui/format';
 import { Recorder, speak, transcribe } from '@/ui/voice';
 import type { Message } from '@/engine/orchestrator';
 import type { DecisionPacket } from '@/engine/summary';
+import { PACK } from '@/engine/orchestrator';
+import { LEVEL_RANK } from '@/engine/types';
 
-export function PatientCard() {
+export function PatientStrip() {
   const { s } = useAgent();
+  const [open, setOpen] = useState(false);
   const p = s.patient;
+  const initials = p.display_name.split(' ').map((w) => w[0]).slice(0, 2).join('');
   return (
-    <section className="panel p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="panel-title">Patient</div>
-          <div className="mt-1 text-lg font-semibold leading-tight">{p.display_name}</div>
-          <div className="text-sm text-muted">
-            {p.age_years}
-            {p.sex} · {p.village} · <span className="font-mono text-xs">{p.id}</span>
+    <section className="panel shrink-0 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-100 text-sm font-bold text-violet-800">{initials}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[15px] font-bold">{p.display_name}</span>
+            <span className="text-[12px] text-muted">
+              {p.age_years}
+              {p.sex} · {p.village}
+            </span>
+          </div>
+          <div className="truncate text-[11.5px] text-muted">
+            Worker: <b className="text-ink">{s.worker.name}</b> · {s.worker.role.split(' (')[0]} · kit: {s.worker.equipment.filter((e) => e !== 'mobile_phone').map((e) => e.replace('_', ' ')).join(', ')}
           </div>
         </div>
-        <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-          SYNTHETIC RECORD
-        </span>
+        <button onClick={() => setOpen(!open)} className="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-800">
+          Record {open ? '▴' : '▾'}
+        </button>
       </div>
-      <ul className="mt-3 space-y-1 text-[13px] text-slate-700">
-        {p.summary.map((line) => (
-          <li key={line} className="flex gap-2">
-            <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-violet-400" />
-            {line}
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs text-muted">
-        <span>
-          <span className="font-semibold text-ink">{s.worker.name}</span> · {s.worker.role}
-        </span>
-        <span title="Equipment in worker kit — determines which questions can be asked">
-          Kit: {s.worker.equipment.filter((e) => e !== 'mobile_phone').map((e) => e.replace('_', ' ')).join(', ')}
-        </span>
-      </div>
+      {open && (
+        <ul className="appear mt-2 space-y-0.5 border-t border-line pt-2 text-[12px] text-slate-700">
+          {p.summary.map((line) => (
+            <li key={line}>• {line}</li>
+          ))}
+          <li className="pt-1 text-[10.5px] text-violet-700">{p.record_source} — synthetic</li>
+        </ul>
+      )}
     </section>
   );
 }
@@ -66,8 +67,8 @@ export function Conversation({ voiceLive }: { voiceLive: boolean }) {
   return (
     <section className="panel flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-        <div className="panel-title">Conversation</div>
-        <div className="text-[11px] text-muted">original transcript preserved</div>
+        <div className="panel-title">Health worker ↔ CareGraph</div>
+        <div className="text-[11px] text-muted">speaks · answers · authorizes</div>
       </div>
       <div ref={scroller} className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {s.messages.length === 0 && (
@@ -80,6 +81,7 @@ export function Conversation({ voiceLive }: { voiceLive: boolean }) {
           <Bubble key={m.id} m={m} />
         ))}
         {s.awaiting === 'ANSWER' && s.pendingQuestion && <AnswerBox />}
+        <ActionCard />
       </div>
       <Composer voiceLive={voiceLive} />
     </section>
@@ -174,6 +176,72 @@ export function PacketCard({ p, channel }: { p: DecisionPacket; channel?: string
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ActionCard() {
+  const { s, agent } = useAgent();
+  const sel = s.facilitySearch?.candidates.find((c) => c.facility.id === s.facilitySearch?.selectedId);
+  const urgent = s.triage && LEVEL_RANK[s.triage.level] >= LEVEL_RANK.URGENT;
+  if (s.awaiting === 'AUTHORIZE_COUNCIL' && s.council)
+    return (
+      <AuthBox
+        title={`Send case to ${s.council.members.length}-member expert council?`}
+        lines={s.council.members.map((m) => `${m.expert.name} · ${m.expert.specialty}${m.role === 'ASYNC' ? ' (async)' : m.role === 'LEAD' ? ' (lead)' : ''}`)}
+        note="Minimum necessary data · consent on file (demo)"
+        cta="Authorize & send to council"
+        onClick={() => agent.authorizeCouncil()}
+        busy={s.busy}
+      />
+    );
+  if (s.awaiting === 'AUTHORIZE_TRANSFER' && sel)
+    return (
+      <AuthBox
+        title={urgent ? 'Authorize referral + ambulance' : 'Authorize referral request'}
+        lines={[
+          `Referral → ${sel.facility.name} (${sel.roadKm} km, ~${sel.etaMin} min)`,
+          ...(urgent ? [`Ambulance → ${PACK.emergency.ambulance_service}`] : ['No ambulance — non-urgent appointment']),
+        ]}
+        note={urgent ? `Confirm: ${PACK.emergency.authorization_roles[1]}` : undefined}
+        cta={urgent ? 'Authorize & send' : 'Authorize & request appointment'}
+        onClick={() => agent.authorizeTransfer()}
+        busy={s.busy}
+        danger={!!urgent}
+      />
+    );
+  if (s.awaiting === 'COUNTER_REFERRAL')
+    return (
+      <div className="appear rounded-xl border border-emerald-300 bg-emerald-50 p-3">
+        <div className="text-sm font-bold text-emerald-800">{s.transport.state === 'ARRIVED_AT_FACILITY' ? '✓ Handoff complete' : '✓ Referral accepted'}</div>
+        <div className="mt-0.5 text-xs text-emerald-900">The case stays open until the receiving clinician reports back.</div>
+        <button onClick={() => agent.recordCounterReferral()} disabled={s.busy} className="mt-2 rounded-lg border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800">
+          Simulate counter-referral → close loop
+        </button>
+      </div>
+    );
+  return null;
+}
+
+function AuthBox(p: { title: string; lines: string[]; note?: string; cta: string; onClick: () => void; busy: boolean; danger?: boolean }) {
+  return (
+    <div className={cx('appear rounded-xl border-2 p-3', p.danger ? 'border-red-300 bg-red-50' : 'border-brand/40 bg-brand-soft')}>
+      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-600">🛡 Human authorization required</div>
+      <div className="mt-1 text-sm font-bold">{p.title}</div>
+      <ul className="mt-1 space-y-0.5 text-[12px] text-slate-700">
+        {p.lines.map((l) => (
+          <li key={l}>• {l}</li>
+        ))}
+      </ul>
+      {p.note && <div className="mt-1 text-[11px] text-muted">{p.note}</div>}
+      <button
+        onClick={p.onClick}
+        disabled={p.busy}
+        className={cx('mt-2.5 w-full rounded-lg px-3 py-2 text-sm font-bold text-white disabled:opacity-40', p.danger ? 'bg-emergency' : 'bg-brand')}
+      >
+        {p.cta}
+      </button>
+      <div className="mt-1 text-center text-[10px] text-muted">Simulated integration — nothing is really sent or dispatched</div>
     </div>
   );
 }

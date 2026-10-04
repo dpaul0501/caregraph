@@ -33,20 +33,23 @@ Without a key, the header shows **Voice: demo fallback** and the *Play demo inta
 
 ## Demo script (≈100 s)
 
+Screen: **left** = the health worker's conversation (speak, answer, authorize). **Right** = the CareGraph agent: live tool strip, then a six-stage pipeline — *Understand (evidence graph) → Triage (country protocol) → Uncertainty → Expert council → Where to go (top 3) → Transport & handoff*. Facts table, question ranking and audit trail live under **Details & audit**.
+
 **Case A — Maternal emergency** (default tab)
 1. *"Meet Asha, an ASHA worker. Her patient is 34 weeks pregnant with a severe headache. Asha doesn't learn a new system — she speaks."* → **▶ Play demo intake** (or mic).
-2. Point at **Structured case**: facts extracted; *visual disturbance, convulsions, BP = UNKNOWN* (hatched). Yesterday's BP 151/98 is history, **not** today's BP.
-3. **Next question** panel: BP ranks top; value raised by her gestational-hypertension history. *"It asks only the question that can change the decision."*
+2. Point at **Understand — evidence graph**: present findings ✓, unknown findings dashed **?** (never "no"). The hypertensive cluster leads and *cannot be excluded*. Yesterday's BP 151/98 is history, **not** today's BP.
+3. **Triage** stage: BP is the chosen question; its value is raised by her gestational-hypertension history. *"It asks only the question that can change the decision."*
 4. **Demo: 166/108** → red **Protocol rule** bubble: *"Urgent escalation criterion met (M-01). Further questioning will not delay referral."* Triage *Why?* shows WHO baseline + country-pack provenance.
-5. **Facility match**: District Hospital Barhi selected (21 km); *"8 facilities are nearer — none can provide emergency obstetric care right now"* (nearest PHC lacks C-section/blood; CHC's obstetrician is on leave; private nursing home's status is stale).
+5. **Expert council: not convened** — the rule is decisive, so no delay for deliberation. **Where to go — top 3**: District Hospital Barhi (recommended), Medical College (backup), private nursing home (*confirm by phone* — stale status). Forecast ≈52 min to definitive care. *"Why not closer?"* expands 7 nearer facilities that cannot provide it.
 6. **Authorize & send** (human authorization gate) → WhatsApp-style minimal packet (unknowns stated explicitly) → Dr. Rao **ACCEPTS** → ambulance assigned → departed → arrived → **Handoff complete**.
 7. *"Most clinical AI stops at a recommendation. CareGraph stays until the handoff is complete."*
 
 **Case B — Ambiguous child** (tab B)
 1. **▶ Play demo intake** → *"fractures happen easily"* is stored as **INFERRED** (needs confirmation), not fact.
 2. Answer *Little force* → *Yes* (blue sclera) → **STOPPED: diminishing value**. Diagnosis **NOT ESTABLISHED**; protocol requires clinician confirmation.
-3. **Expertise network**: GP / obstetrician / orthopaedist (in surgery) / geneticist (Friday only) ruled out with reasons → **Dr. Iyer, pediatrician** selected.
-4. Peer replies *"Ask about hearing problems; specialist referral appropriate."* → stored as **HUMAN PEER OPINION · CASE-SPECIFIC**, not global knowledge → CareGraph asks the peer's question → referral booked at the genetics clinic.
+3. **Evidence graph** keeps *Safeguarding concern* visible as *cannot be excluded* (not assessable by a community worker) — flagged to clinicians, never concluded.
+4. **Expert council**: smallest council covering the rule's expertise — Dr. Iyer (pediatrics, lead), Dr. Khan (orthopaedics), Dr. Sen (genetics, async/non-blocking); GP, obstetrician, off-duty endocrinologist not included. Authorize → both reply **AGREE + REFER** → *CONSENSUS 2/2*. Opinions stored as **HUMAN PEER OPINION · CASE-SPECIFIC**.
+5. CareGraph asks the lead's question (hearing) → top places: only the Medical College offers a genetics clinic → appointment booked, no ambulance (non-urgent).
 5. *"When CareGraph doesn't know, it doesn't guess. It finds someone who does."*
 
 Extras: header **no-response** toggle shows automatic escalation to the district referral desk; **Audit** opens the full trail; **हिन्दी / বাংলা** switches spoken questions.
@@ -59,8 +62,9 @@ src/engine/          framework-free TypeScript — runs on-device, no network ne
   extract.ts         deterministic lexicon extractor (+ Hindi glossary), negation-aware
   triage.ts          protocol execution + value-of-information question selection
   uncertainty.ts     7 uncertainty dimensions (no single fake confidence score)
+  kg.ts              evidence graph: findings → problem clusters (risk × evidence × unresolved) → actions
   facilities.ts      capability/availability/acceptance/ETA matching
-  experts.ts         expertise routing within urgency response window
+  experts.ts         expert council: smallest set covering required expertise in the response window
   referral.ts        referral + transport state machines (invalid transitions throw)
   summary.ts         minimal clinician decision packet
   orchestrator.ts    agent loop: "what uncertainty blocks the next safe action?" → tool

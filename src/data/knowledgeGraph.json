@@ -1,0 +1,505 @@
+{
+  "_meta": {
+    "version": "kg-demo-0.2",
+    "note": "Small, curated evidence graph. Edges carry provenance. Weights and finding priors are demo values to be calibrated from closed-loop outcomes — they are NOT diagnostic probabilities.",
+    "validation": "DEMO — not clinically validated"
+  },
+  "findings": {
+    "f_preg20": {
+      "label": "Pregnant ≥20 wk",
+      "when": {
+        "all": [
+          {
+            "fact": "pregnant",
+            "eq": true
+          },
+          {
+            "fact": "gestational_weeks",
+            "gte": 20
+          }
+        ]
+      },
+      "prior": 0.5
+    },
+    "f_bp_severe": {
+      "label": "BP ≥160/110",
+      "when": {
+        "any": [
+          {
+            "fact": "sbp",
+            "gte": 160
+          },
+          {
+            "fact": "dbp",
+            "gte": 110
+          }
+        ]
+      },
+      "prior": 0.25
+    },
+    "f_bp_raised": {
+      "label": "BP ≥140/90",
+      "when": {
+        "any": [
+          {
+            "fact": "sbp",
+            "gte": 140
+          },
+          {
+            "fact": "dbp",
+            "gte": 90
+          }
+        ]
+      },
+      "prior": 0.4
+    },
+    "f_headache": {
+      "label": "Severe headache",
+      "when": {
+        "fact": "severe_headache",
+        "eq": true
+      },
+      "prior": 0.3
+    },
+    "f_visual": {
+      "label": "Visual disturbance",
+      "when": {
+        "fact": "visual_disturbance",
+        "eq": true
+      },
+      "prior": 0.25
+    },
+    "f_epigastric": {
+      "label": "Epigastric pain",
+      "when": {
+        "fact": "epigastric_pain",
+        "eq": true
+      },
+      "prior": 0.15
+    },
+    "f_edema": {
+      "label": "Swelling",
+      "when": {
+        "fact": "edema",
+        "eq": true
+      },
+      "prior": 0.4
+    },
+    "f_convulsions": {
+      "label": "Convulsions",
+      "when": {
+        "fact": "convulsions",
+        "eq": true
+      },
+      "prior": 0.05
+    },
+    "f_bleeding": {
+      "label": "Vaginal bleeding",
+      "when": {
+        "fact": "vaginal_bleeding",
+        "eq": true
+      },
+      "prior": 0.05
+    },
+    "f_hx_ghtn": {
+      "label": "Hx gestational HTN",
+      "when": {
+        "fact": "hx_gestational_htn",
+        "eq": true
+      },
+      "prior": 0.1
+    },
+    "f_proteinuria": {
+      "label": "Proteinuria (lab)",
+      "when": {
+        "fact": "proteinuria",
+        "eq": true
+      },
+      "requires": "urine dipstick",
+      "prior": 0.5
+    },
+    "f_recurrent": {
+      "label": "Recurrent fractures",
+      "when": {
+        "fact": "recurrent_fracture",
+        "eq": true
+      },
+      "prior": 0.2
+    },
+    "f_low_trauma": {
+      "label": "Low-trauma mechanism",
+      "when": {
+        "fact": "low_trauma",
+        "eq": true
+      },
+      "prior": 0.6
+    },
+    "f_sclera": {
+      "label": "Blue / grey sclera",
+      "when": {
+        "fact": "blue_sclera",
+        "eq": true
+      },
+      "prior": 0.3
+    },
+    "f_family": {
+      "label": "Family history",
+      "when": {
+        "fact": "family_history_fractures",
+        "eq": true
+      },
+      "prior": 0.3
+    },
+    "f_hearing": {
+      "label": "Hearing problems",
+      "when": {
+        "fact": "hearing_impairment",
+        "eq": true
+      },
+      "prior": 0.2
+    },
+    "f_short": {
+      "label": "Short stature",
+      "when": {
+        "fact": "short_stature",
+        "eq": true
+      },
+      "prior": 0.3
+    },
+    "f_acute": {
+      "label": "Fresh deformity / wound",
+      "when": {
+        "fact": "acute_deformity",
+        "eq": true
+      },
+      "prior": 0.05
+    },
+    "f_bowing": {
+      "label": "Limb bowing",
+      "when": {
+        "fact": "limb_bowing",
+        "eq": true
+      },
+      "requires": "clinical exam",
+      "prior": 0.2
+    },
+    "f_diet": {
+      "label": "Poor diet / sunlight",
+      "when": {
+        "fact": "poor_diet_sunlight",
+        "eq": true
+      },
+      "prior": 0.3
+    },
+    "f_inconsistent": {
+      "label": "Inconsistent injury history",
+      "when": {
+        "fact": "history_inconsistent",
+        "eq": true
+      },
+      "requires": "safeguarding screen",
+      "prior": 0.1
+    }
+  },
+  "clusters": [
+    {
+      "id": "c_hdp",
+      "protocol": "maternal_demo_v1",
+      "label": "Hypertensive disorder of pregnancy — severe features",
+      "severity": 5,
+      "time": "hours",
+      "rules": [
+        "M-01",
+        "M-04"
+      ],
+      "action": "Emergency obstetric referral",
+      "edges": [
+        {
+          "finding": "f_bp_severe",
+          "rel": "supports",
+          "w": 3,
+          "src": "WHO 2011 pre-eclampsia/eclampsia"
+        },
+        {
+          "finding": "f_bp_raised",
+          "rel": "supports",
+          "w": 2,
+          "src": "WHO 2011 pre-eclampsia/eclampsia"
+        },
+        {
+          "finding": "f_headache",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "WHO 2011 severe features"
+        },
+        {
+          "finding": "f_visual",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "WHO 2011 severe features"
+        },
+        {
+          "finding": "f_epigastric",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "WHO 2011 severe features"
+        },
+        {
+          "finding": "f_proteinuria",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "WHO 2011 diagnostic criteria"
+        },
+        {
+          "finding": "f_hx_ghtn",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO ANC 2016 risk factor"
+        },
+        {
+          "finding": "f_edema",
+          "rel": "supports",
+          "w": 0.5,
+          "src": "WHO ANC 2016 (non-specific)"
+        }
+      ],
+      "short": "Hypertensive disorder (severe)"
+    },
+    {
+      "id": "c_eclampsia",
+      "protocol": "maternal_demo_v1",
+      "label": "Eclampsia (actual or impending)",
+      "severity": 5,
+      "time": "minutes",
+      "rules": [
+        "M-02"
+      ],
+      "action": "Emergency obstetric referral",
+      "edges": [
+        {
+          "finding": "f_convulsions",
+          "rel": "supports",
+          "w": 4,
+          "src": "WHO 2011 definition"
+        },
+        {
+          "finding": "f_headache",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO 2011 premonitory signs"
+        },
+        {
+          "finding": "f_visual",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO 2011 premonitory signs"
+        },
+        {
+          "finding": "f_bp_severe",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO 2011"
+        }
+      ],
+      "short": "Eclampsia"
+    },
+    {
+      "id": "c_aph",
+      "protocol": "maternal_demo_v1",
+      "label": "Antepartum haemorrhage",
+      "severity": 5,
+      "time": "minutes",
+      "rules": [
+        "M-03"
+      ],
+      "action": "Emergency referral with blood",
+      "edges": [
+        {
+          "finding": "f_bleeding",
+          "rel": "supports",
+          "w": 4,
+          "src": "WHO ANC 2016 danger signs"
+        }
+      ],
+      "short": "Antepartum haemorrhage"
+    },
+    {
+      "id": "c_primary_headache",
+      "protocol": "maternal_demo_v1",
+      "label": "Non-obstetric headache (e.g. tension, migraine)",
+      "severity": 1,
+      "time": "days",
+      "rules": [],
+      "action": "Routine review",
+      "edges": [
+        {
+          "finding": "f_headache",
+          "rel": "supports",
+          "w": 1,
+          "src": "General clinical knowledge"
+        },
+        {
+          "finding": "f_bp_raised",
+          "rel": "against",
+          "w": 2,
+          "src": "WHO 2011: raised BP points to HDP"
+        },
+        {
+          "finding": "f_hx_ghtn",
+          "rel": "against",
+          "w": 1,
+          "src": "WHO ANC 2016"
+        },
+        {
+          "finding": "f_visual",
+          "rel": "against",
+          "w": 1,
+          "src": "WHO 2011"
+        }
+      ],
+      "short": "Non-obstetric headache"
+    },
+    {
+      "id": "c_heritable",
+      "protocol": "pediatric_bone_demo_v1",
+      "label": "Heritable bone fragility (e.g. osteogenesis imperfecta)",
+      "severity": 3,
+      "time": "weeks",
+      "rules": [
+        "P-03"
+      ],
+      "action": "Pediatric genetics / bone clinic",
+      "edges": [
+        {
+          "finding": "f_recurrent",
+          "rel": "supports",
+          "w": 1,
+          "src": "Pediatric bone-fragility pathway (demo)"
+        },
+        {
+          "finding": "f_low_trauma",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "Pediatric bone-fragility pathway (demo)"
+        },
+        {
+          "finding": "f_sclera",
+          "rel": "supports",
+          "w": 2.5,
+          "src": "Clinical genetics reference (demo)"
+        },
+        {
+          "finding": "f_family",
+          "rel": "supports",
+          "w": 2,
+          "src": "Clinical genetics reference (demo)"
+        },
+        {
+          "finding": "f_hearing",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "Clinical genetics reference (demo)"
+        },
+        {
+          "finding": "f_short",
+          "rel": "supports",
+          "w": 1,
+          "src": "Clinical genetics reference (demo)"
+        }
+      ],
+      "short": "Heritable bone fragility"
+    },
+    {
+      "id": "c_metabolic",
+      "protocol": "pediatric_bone_demo_v1",
+      "label": "Metabolic / nutritional bone disease (e.g. rickets)",
+      "severity": 3,
+      "time": "weeks",
+      "rules": [],
+      "action": "Pediatric evaluation",
+      "edges": [
+        {
+          "finding": "f_recurrent",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO child nutrition guidance (demo mapping)"
+        },
+        {
+          "finding": "f_low_trauma",
+          "rel": "supports",
+          "w": 1,
+          "src": "Pediatric bone-fragility pathway (demo)"
+        },
+        {
+          "finding": "f_short",
+          "rel": "supports",
+          "w": 1,
+          "src": "WHO child growth standards (demo mapping)"
+        },
+        {
+          "finding": "f_bowing",
+          "rel": "supports",
+          "w": 2,
+          "src": "WHO child nutrition guidance (demo mapping)"
+        },
+        {
+          "finding": "f_diet",
+          "rel": "supports",
+          "w": 2,
+          "src": "WHO child nutrition guidance (demo mapping)"
+        },
+        {
+          "finding": "f_sclera",
+          "rel": "against",
+          "w": 1,
+          "src": "Clinical genetics reference (demo)"
+        }
+      ],
+      "short": "Metabolic bone disease"
+    },
+    {
+      "id": "c_nai",
+      "protocol": "pediatric_bone_demo_v1",
+      "label": "Non-accidental injury — safeguarding",
+      "severity": 5,
+      "time": "days",
+      "rules": [],
+      "action": "Safeguarding screen by clinician",
+      "edges": [
+        {
+          "finding": "f_recurrent",
+          "rel": "supports",
+          "w": 1.5,
+          "src": "Child protection guidance (demo mapping)"
+        },
+        {
+          "finding": "f_inconsistent",
+          "rel": "supports",
+          "w": 3,
+          "src": "Child protection guidance (demo mapping)"
+        }
+      ],
+      "short": "Safeguarding concern"
+    },
+    {
+      "id": "c_acute_fx",
+      "protocol": "pediatric_bone_demo_v1",
+      "label": "Acute fracture needing same-day care",
+      "severity": 4,
+      "time": "hours",
+      "rules": [
+        "P-01"
+      ],
+      "action": "Same-day fracture care",
+      "edges": [
+        {
+          "finding": "f_acute",
+          "rel": "supports",
+          "w": 4,
+          "src": "Generic emergency triage (demo)"
+        }
+      ],
+      "short": "Acute fracture"
+    }
+  ]
+}

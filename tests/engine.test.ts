@@ -135,6 +135,9 @@ describe('maternal end-to-end (demo case A)', () => {
     let s = a.getState();
     expect(s.pendingQuestion?.id).toBe('q_bp');
     expect(s.facts.hx_gestational_htn.evidence).toBe('PATIENT_RECORD');
+    // Before BP: the hypertensive cluster leads and cannot be excluded.
+    expect(s.clusters[0].cluster.id).toBe('c_hdp');
+    expect(s.clusters[0].status).toBe('CANNOT_EXCLUDE');
     expect(s.facts.sbp).toBeUndefined(); // yesterday's BP is not today's BP
 
     await a.answer('q_bp', { bp: '166/108' });
@@ -142,6 +145,11 @@ describe('maternal end-to-end (demo case A)', () => {
     expect(s.triage?.level).toBe('EMERGENCY');
     expect(s.messages.some((m) => m.kind === 'stop' && /Further questioning will not delay referral/.test(m.text))).toBe(true);
     expect(s.facilitySearch?.selectedId).toBe('dh-barhi');
+    expect(s.facilitySearch?.top).toEqual(['dh-barhi', 'mch-gaya', 'nh-shanti']);
+    expect(s.forecast?.timeToCareMin).toBe(52);
+    expect(s.council).toBeNull();
+    expect(s.clusters[0].cluster.id).toBe('c_hdp');
+    expect(s.clusters[0].status).toBe('PROTOCOL_MET');
     const byId = Object.fromEntries(s.facilitySearch!.candidates.map((c) => [c.facility.id, c]));
     expect(byId['phc-kheri'].eligibility).toBe('NOT_ELIGIBLE');
     expect(byId['chc-sonpur'].reason).toMatch(/obstetrician/);
@@ -207,14 +215,18 @@ describe('pediatric end-to-end (demo case B)', () => {
     await a.answer('q_sclera', { outcome: 0 });
     let s = a.getState();
     expect(s.stopReason).toBe('DIMINISHING_VALUE');
-    expect(s.awaiting).toBe('AUTHORIZE_PEER');
-    expect(s.expertSearch?.selectedId).toBe('dr-iyer');
+    expect(s.awaiting).toBe('AUTHORIZE_COUNCIL');
+    expect(s.council?.members.map((m) => `${m.expert.id}:${m.role}`)).toEqual(['dr-iyer:LEAD', 'dr-khan:MEMBER', 'dr-sen:ASYNC']);
     expect(s.facts.family_history_fractures).toBeUndefined();
+    // Safeguarding cannot be excluded at community level — kept visible, never dropped.
+    expect(s.clusters.find((c) => c.cluster.id === 'c_nai')?.status).toBe('CANNOT_EXCLUDE');
+    expect(s.clusters[0].status).toBe('PROTOCOL_MET');
 
-    await a.authorizePeer();
+    await a.authorizeCouncil();
     s = a.getState();
-    expect(s.peerOpinions[0].evidence).toBe('HUMAN_PEER_OPINION');
-    expect(s.peerOpinions[0].scope).toBe('CASE_SPECIFIC');
+    expect(s.peerOpinions).toHaveLength(2);
+    expect(s.peerOpinions.every((o) => o.evidence === 'HUMAN_PEER_OPINION' && o.scope === 'CASE_SPECIFIC')).toBe(true);
+    expect(s.consensus).toMatch(/^CONSENSUS 2\/2/);
     expect(s.pendingQuestion?.id).toBe('q_hearing');
 
     await a.answer('q_hearing', { outcome: 0 });

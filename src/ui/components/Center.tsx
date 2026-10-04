@@ -1,40 +1,7 @@
-import { useState } from 'react';
 import { useAgent } from '@/ui/useAgent';
-import { FACTS, factLabel } from '@/data/factCatalog';
-import { describe, factsIn } from '@/engine/logic';
-import { PACK } from '@/engine/orchestrator';
-import { EVIDENCE_STYLE, LEVEL_STYLE, STATUS_STYLE, ULEVEL_STYLE, cx } from '@/ui/format';
+import { FACTS } from '@/data/factCatalog';
+import { STATUS_STYLE, ULEVEL_STYLE, cx } from '@/ui/format';
 import type { Fact, FactDef } from '@/engine/types';
-
-export function AgentFocus() {
-  const { s } = useAgent();
-  const f = s.focus;
-  if (!f) return null;
-  return (
-    <section className="panel overflow-hidden">
-      <div className="flex items-stretch">
-        <div className="flex-1 p-3.5">
-          <div className="panel-title">What uncertainty blocks the next safe action?</div>
-          <div className="mt-1 text-[15px] font-semibold leading-snug">{f.blocking}</div>
-          <div className="mt-1 text-xs text-muted">{f.why}</div>
-        </div>
-        <div className="flex w-56 shrink-0 flex-col justify-center border-l border-line bg-slate-50 px-3.5">
-          <div className="panel-title">Tool</div>
-          <div className="mt-1 flex items-center gap-2 font-mono text-[13px] font-semibold text-brand">
-            {s.activeTool ? (
-              <>
-                <span className="h-2 w-2 animate-ping rounded-full bg-brand" />
-                {s.activeTool}()
-              </>
-            ) : (
-              <>{f.tool}</>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function UncertaintyPanel() {
   const { s } = useAgent();
@@ -189,68 +156,6 @@ export function QuestionRanking() {
         ))}
       </div>
       <div className="mt-2 text-[10px] text-muted">Priors are heuristic demo values, not calibrated probabilities. Score = expected change in triage level/action.</div>
-    </section>
-  );
-}
-
-export function TriageWhy() {
-  const { s } = useAgent();
-  const [open, setOpen] = useState(true);
-  const t = s.triage;
-  if (!t) return null;
-  const st = LEVEL_STYLE[t.level];
-  return (
-    <section className="panel p-3.5">
-      <button className="flex w-full items-center justify-between" onClick={() => setOpen(!open)}>
-        <div className="panel-title">Triage — deterministic protocol, why?</div>
-        <span className="text-xs text-muted">{open ? '▾' : '▸'}</span>
-      </button>
-      <div className="mt-2 flex items-center gap-2">
-        <span className={cx('rounded-md px-2 py-0.5 text-xs font-bold text-white', st.bg)}>{st.label}</span>
-        <span className="text-sm font-semibold">{t.action}</span>
-      </div>
-      {open && (
-        <div className="mt-2.5 space-y-1.5 text-[12px]">
-          {t.fired.slice(0, 1).map((r) => (
-            <div key={r.id} className={cx('rounded-lg border p-2', t.level === 'EMERGENCY' ? 'border-red-200 bg-red-50/50' : 'border-line')}>
-              <div className="font-semibold">
-                <span className="font-mono">{r.id}</span> TRIGGERED — {r.title}
-              </div>
-              <div className="font-mono text-[11px] text-slate-600">{describe(r.when, factLabel)}</div>
-              <div className="mt-1 text-[11px] text-slate-600">
-                <span className={cx('mr-1 rounded border px-1 py-px text-[9px] font-semibold', EVIDENCE_STYLE.VERIFIED_CLINICAL.cls)}>WHO baseline</span>
-                {r.source.baseline}
-              </div>
-              <div className="text-[11px] text-slate-600">
-                <span className="mr-1 rounded border border-orange-200 bg-orange-50 px-1 py-px text-[9px] font-semibold text-orange-700">Country pack</span>
-                {r.source.local}
-              </div>
-              <div className="mt-1 text-[11px] text-slate-600">
-                Evidence used:{' '}
-                {factsIn(r.when)
-                  .filter((k, i, a) => a.indexOf(k) === i && s.facts[k] && s.facts[k].status !== 'UNKNOWN')
-                  .map((k) => `${factLabel(k)} = ${s.facts[k].value === true ? 'yes' : s.facts[k].value} (${s.facts[k].status.toLowerCase()})`)
-                  .join(' · ')}
-              </div>
-            </div>
-          ))}
-          {t.fired.length > 1 && (
-            <div className="text-[11px] text-slate-600">
-              <span className="font-semibold">Also met: </span>
-              {t.fired.slice(1).map((r) => `${r.id} ${r.title} [${r.level}]`).join(' · ')}
-            </div>
-          )}
-          {t.undetermined.length > 0 && (
-            <div className="rounded-lg border border-dashed border-slate-300 p-2 text-[11px] text-slate-600">
-              <span className="font-semibold">Undetermined (depend on UNKNOWN facts): </span>
-              {t.undetermined.map((r) => `${r.id} ${r.title} [${r.level}]`).join(' · ')}
-            </div>
-          )}
-          <div className="text-[10px] text-muted">
-            {s.protocol.id} v{s.protocol.version} · {s.protocol.validation} · {PACK.code}@{PACK.version}
-          </div>
-        </div>
-      )}
     </section>
   );
 }

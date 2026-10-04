@@ -29,6 +29,12 @@ export const FACTS: Record<string, FactDef> = {
   hearing_impairment: { label: 'Hearing problems', type: 'boolean', group: 'presentation' },
   acute_deformity: { label: 'Acute deformity / open wound now', type: 'boolean', group: 'presentation' },
 
+  // Graph-only discriminators (not collectable by a community worker in the demo)
+  proteinuria: { label: 'Proteinuria', type: 'boolean', group: 'measurement' },
+  limb_bowing: { label: 'Limb bowing', type: 'boolean', group: 'presentation' },
+  poor_diet_sunlight: { label: 'Poor diet / sunlight', type: 'boolean', group: 'presentation' },
+  history_inconsistent: { label: 'Inconsistent injury history', type: 'boolean', group: 'presentation' },
+
   // Fever
   fever: { label: 'Fever', type: 'boolean', group: 'presentation' },
   myalgia: { label: 'Body aches', type: 'boolean', group: 'presentation' },

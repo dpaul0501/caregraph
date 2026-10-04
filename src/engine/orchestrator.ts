@@ -6,10 +6,11 @@ import { factLabel } from '../data/factCatalog';
 import { SCENARIOS, type ScenarioDef } from '../data/scenarios';
 import { extractCase, parseBP } from './extract';
 import { searchFacilities, type CapabilityDef, type Facility, type FacilitySearch } from './facilities';
-import { findExpert, type Expert, type ExpertSearch } from './experts';
+import { convokeCouncil, type Council, type Expert } from './experts';
+import { assessClusters, KG, type ClusterAssessment } from './kg';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
 import { buildPacket, type DecisionPacket } from './summary';
-import { missingInformation, runTriage, selectNextQuestion } from './triage';
+import { isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
 import { assessUncertainty, type Conflict, type UncertaintyDim } from './uncertainty';
 import type {
   Actor, AuditEvent, EvidenceClass, Fact, Facts, Protocol, QuestionDef, QuestionScore, StopReason, TriageResult,
@@ -78,7 +79,7 @@ export interface AgentFocus {
 export type Awaiting =
   | 'INTAKE'
   | 'ANSWER'
-  | 'AUTHORIZE_PEER'
+  | 'AUTHORIZE_COUNCIL'
   | 'AUTHORIZE_TRANSFER'
   | 'COUNTER_REFERRAL'
   | 'DONE'
@@ -104,7 +105,11 @@ export interface Session {
   referralState: ReferralState | null;
   stateHistory: { state: ReferralState; at: number }[];
   facilitySearch: FacilitySearch | null;
-  expertSearch: ExpertSearch | null;
+  council: Council | null;
+  councilVotes: { expertId: string; status: 'PENDING' | 'RESPONDED' | 'ASYNC' }[];
+  consensus: string | null;
+  clusters: ClusterAssessment[];
+  forecast: null | { timeToCareMin: number; parts: string[]; riskModel: string };
   peerOpinions: PeerOpinion[];
   packet: DecisionPacket | null;
   transfer: null | {
@@ -155,7 +160,11 @@ function freshSession(scenarioId: ScenarioDef['id'], lang: Lang, options: Sessio
     referralState: null,
     stateHistory: [],
     facilitySearch: null,
-    expertSearch: null,
+    council: null,
+    councilVotes: [],
+    consensus: null,
+    clusters: [],
+    forecast: null,
     peerOpinions: [],
     packet: null,
     transfer: null,
@@ -456,6 +465,13 @@ export class CareGraphAgent {
       { evidence: 'VERIFIED_CLINICAL', actor: 'RULE_ENGINE' },
     );
     s.triage = triage;
+    s.clusters = await this.tool(
+      'clinical_knowledge',
+      `kg:${p.id}, ${PACK.code}`,
+      () => assessClusters(p.id, s.facts, triage),
+      (cs) => `${cs.length} problem clusters · ${cs.map((c) => `${c.cluster.id}=${c.status}`).join(', ')} · ${KG._meta.version}`,
+      { evidence: 'VERIFIED_CLINICAL' },
+    );
     s.missing = missingInformation(p, s.facts, triage);
     await this.tool(
       'get_missing_information',
@@ -492,6 +508,7 @@ export class CareGraphAgent {
     if (sel.stopReason === 'EMERGENCY_CRITERION_MET') {
       const r = triage.fired[0];
       this.audit({ actor: 'RULE_ENGINE', kind: 'DECISION', title: `Rule ${r.id} TRIGGERED — stop questioning`, detail: r.source.baseline, evidence: 'VERIFIED_CLINICAL' });
+      this.audit({ actor: 'AGENT', kind: 'DECISION', title: 'Expert council not convened', detail: 'Protocol rule is decisive; receiving clinician confirms acceptance — no delay for deliberation' });
       this.say({
         role: 'agent',
         kind: 'stop',
@@ -509,7 +526,7 @@ export class CareGraphAgent {
     }
 
     const needsReview = triage.fired.find((r) => r.requires_peer_review);
-    if (needsReview && s.peerOpinions.length === 0) return this.preparePeerReview();
+    if (needsReview && s.peerOpinions.length === 0) return this.prepareCouncil();
     if (triage.requiredCapability) {
       this.go('REFERRAL_REQUIRED', triage.action, 'RULE_ENGINE');
       return this.route();
@@ -534,93 +551,108 @@ export class CareGraphAgent {
     });
   }
 
-  // ---------- human expertise ----------
-  private async preparePeerReview() {
+  // ---------- expert council ----------
+  private async prepareCouncil() {
     const s = this.s;
     const triage = s.triage!;
     const rule = triage.fired.find((r) => r.requires_peer_review)!;
     const windowMin = (PACK.expert_response_window_min as Record<string, number>)[triage.level];
     this.focus(
-      'Action uncertainty — pathway needs clinician confirmation',
-      'find_expert',
-      `Rule ${rule.id} requires review; more questions have diminishing value. Find the smallest available node with ${rule.expertise!.join(' / ')} expertise within ${windowMin} min.`,
+      'Action uncertainty — protocol is not decisive alone',
+      'convene_council',
+      `Rule ${rule.id} requires clinician confirmation and further questions add little value. Convene the smallest council covering ${rule.expertise!.join(' / ')} within ${windowMin / 60} h.`,
     );
-    s.expertSearch = await this.tool(
-      'find_expert',
+    s.council = await this.tool(
+      'convene_council',
       `${rule.expertise!.join('|')}, ${triage.level}`,
-      () => findExpert(EXPERTS, rule.expertise!, windowMin),
-      (r) => {
-        const sel = r.ranked.find((x) => x.expert.id === r.selectedId);
-        return sel ? `selected ${sel.expert.name} (${sel.expert.specialty}) · ${r.ranked.filter((x) => !x.ok).length} not suitable` : 'no suitable expert';
-      },
+      () => convokeCouncil(EXPERTS, rule.expertise!, windowMin),
+      (c) => `${c.members.map((m) => `${m.expert.name} (${m.role.toLowerCase()})`).join(', ')} · quorum ${c.quorum}`,
       { evidence: 'SIMULATED_OPERATIONAL' },
     );
-    const expert = EXPERTS.find((e) => e.id === s.expertSearch!.selectedId);
-    if (!expert) {
-      this.say({ role: 'system', kind: 'alert', text: 'No suitable expert available within window — escalating to district referral desk.' });
+    if (!s.council.members.length) {
+      this.say({ role: 'system', kind: 'alert', text: 'No expert available — escalating to district referral desk.' });
       return;
     }
+    s.councilVotes = s.council.members.map((m) => ({ expertId: m.expert.id, status: m.role === 'ASYNC' ? 'ASYNC' : 'PENDING' }));
     s.packet = await this.tool(
       'generate_case_summary',
-      'case, purpose=peer_review',
+      'case, purpose=council',
       () => this.makePacket('PEER_REVIEW', `Confirm pathway: ${rule.action.toLowerCase()}?`),
       (p) => `${p.lines.length} lines · ${p.unknowns.length} unknowns stated explicitly`,
     );
+    const lead = s.council.members[0].expert;
     this.say({
       role: 'agent',
       kind: 'info',
-      text: `Diagnosis not established and the protocol requires clinician confirmation. Recommend peer review by ${expert.name} (${expert.specialty}, ${expert.channel}). Send minimal case packet?`,
+      text: `Diagnosis not established and the protocol needs clinician confirmation. Send a minimal case packet to a ${s.council.members.length}-member council (lead: ${lead.name}, ${lead.specialty})?`,
     });
-    s.awaiting = 'AUTHORIZE_PEER';
+    s.awaiting = 'AUTHORIZE_COUNCIL';
     this.emit();
   }
 
-  authorizePeer() {
-    if (this.s.awaiting !== 'AUTHORIZE_PEER') return Promise.resolve();
+  authorizeCouncil() {
+    if (this.s.awaiting !== 'AUTHORIZE_COUNCIL') return Promise.resolve();
     return this.run(async () => {
       const s = this.s;
       s.awaiting = null;
-      const expert = EXPERTS.find((e) => e.id === s.expertSearch!.selectedId)!;
-      this.audit({ actor: 'CHW', kind: 'AUTHORIZATION', title: 'Authorized sharing minimal case packet with peer', detail: `${s.worker.name}; consent on file (demo)` });
-      await this.tool('send_case', `${expert.id}, packet, ${s.triage!.level}`, () => true, () => `sent via ${expert.channel}`, { evidence: 'SIMULATED_OPERATIONAL' });
-      this.go('PEER_REVIEW_REQUESTED', `Sent to ${expert.name}`, 'AGENT');
-      this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `${expert.channel} → ${expert.name}` });
-      this.focus('Human acknowledgement — awaiting peer', 'track_referral', `Response window ${s.expertSearch!.windowMin} min; escalate to next node if exceeded.`);
-      await this.pause(2200);
-      this.tick(12);
-      const resp = s.scenario.peerResponse!;
-      const opinion: PeerOpinion = {
-        expertId: expert.id,
-        name: expert.name,
-        specialty: expert.specialty,
-        text: resp.text,
-        choice: resp.choice,
-        at: s.clock,
-        scope: 'CASE_SPECIFIC',
-        evidence: 'HUMAN_PEER_OPINION',
-        caseId: s.caseId,
-        conflict: resp.choice === 'MANAGE LOCALLY' && s.triage!.requiredCapability ? 'Peer advises local management; protocol rule requires referral' : null,
-      };
-      await this.tool(
-        'record_peer_response',
-        `${s.caseId}, ${expert.id}`,
-        () => {
-          s.peerOpinions = [...s.peerOpinions, opinion];
-        },
-        () => `stored as HUMAN_PEER_OPINION · scope CASE_SPECIFIC · NOT written to global knowledge`,
-        { evidence: 'HUMAN_PEER_OPINION', actor: 'CLINICIAN' },
-      );
-      if (opinion.conflict) this.s.conflicts = [...this.s.conflicts, { key: 'next_action', a: 'refer (protocol)', b: 'manage locally (peer)', resolution: 'Surfaced — not auto-resolved' }];
-      this.say({ role: 'peer', text: resp.text, via: `${expert.name} · ${expert.specialty}`, channel: expert.channel });
-      this.go('PEER_REVIEW_RECEIVED', `${expert.name}: ${resp.choice}`, 'CLINICIAN');
-      const q = resp.suggestsQuestion && s.protocol.questions.find((x) => x.id === resp.suggestsQuestion);
-      if (q && (!s.facts[q.facts[0]] || s.facts[q.facts[0]].status === 'UNKNOWN') && !s.asked.includes(q.id)) {
-        this.go('ASSESSING', 'Peer requested additional information', 'CLINICIAN');
-        this.focus(`Evidence completeness — peer asked for ${q.facts.map(factLabel).join(', ')}`, 'ask_question', `Requested by ${expert.name}; recorded as case-specific advice.`);
-        this.askQuestion(q, expert.name);
+      const council = s.council!;
+      this.audit({ actor: 'CHW', kind: 'AUTHORIZATION', title: 'Authorized sharing minimal case packet with council', detail: `${s.worker.name}; consent on file (demo)` });
+      await this.tool('send_case', `${council.members.map((m) => m.expert.id).join(',')}, packet`, () => true, () => `sent via ${[...new Set(council.members.map((m) => m.expert.channel))].join(' / ')}`, { evidence: 'SIMULATED_OPERATIONAL' });
+      this.go('PEER_REVIEW_REQUESTED', `Council: ${council.members.map((m) => m.expert.name).join(', ')}`, 'AGENT');
+      this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `Council (${council.members.length}) · WhatsApp (simulated)` });
+      this.focus('Human acknowledgement — awaiting council quorum', 'track_referral', `Quorum ${council.quorum} within ${council.windowMin / 60} h; async members never block the decision.`);
+
+      const scripted = s.scenario.council ?? {};
+      for (const m of council.members.filter((x) => x.role !== 'ASYNC')) {
+        await this.pause(1400);
+        this.tick(Math.min(m.expert.typical_response_min, 12));
+        const r = scripted[m.expert.id] ?? { choice: 'AGREE + REFER' as const, text: 'Agree with protocol pathway.' };
+        const opinion: PeerOpinion = {
+          expertId: m.expert.id,
+          name: m.expert.name,
+          specialty: m.expert.specialty,
+          text: r.text,
+          choice: r.choice,
+          at: s.clock,
+          scope: 'CASE_SPECIFIC',
+          evidence: 'HUMAN_PEER_OPINION',
+          caseId: s.caseId,
+          conflict: r.choice === 'MANAGE LOCALLY' && s.triage!.requiredCapability ? 'Advises local management; protocol rule requires referral' : null,
+        };
+        await this.tool(
+          'record_peer_response',
+          `${s.caseId}, ${m.expert.id}`,
+          () => {
+            s.peerOpinions = [...s.peerOpinions, opinion];
+            s.councilVotes = s.councilVotes.map((v) => (v.expertId === m.expert.id ? { ...v, status: 'RESPONDED' } : v));
+          },
+          () => `${r.choice} · stored as HUMAN_PEER_OPINION, scope CASE_SPECIFIC — not written to global knowledge`,
+          { evidence: 'HUMAN_PEER_OPINION', actor: 'CLINICIAN' },
+        );
+        if (opinion.conflict) s.conflicts = [...s.conflicts, { key: 'next_action', a: 'refer (protocol)', b: `manage locally (${m.expert.name})`, resolution: 'Surfaced — not auto-resolved' }];
+        this.say({ role: 'peer', text: r.text, via: `${m.expert.name} · ${m.expert.specialty}${m.role === 'LEAD' ? ' · lead' : ''}`, channel: r.choice });
+      }
+
+      const agree = s.peerOpinions.filter((o) => o.choice === 'AGREE + REFER').length;
+      s.consensus =
+        s.conflicts.some((c) => c.key === 'next_action')
+          ? 'DISAGREEMENT — surfaced to lead clinician; protocol pathway stands until resolved'
+          : agree >= council.quorum
+            ? `CONSENSUS ${agree}/${s.peerOpinions.length}: ${s.triage!.action}`
+            : 'NO QUORUM — escalate';
+      this.audit({ actor: 'AGENT', kind: 'DECISION', title: 'Council outcome', detail: s.consensus });
+      this.go('PEER_REVIEW_RECEIVED', s.consensus, 'CLINICIAN');
+
+      const suggested = Object.values(scripted).find((r) => r.suggestsQuestion)?.suggestsQuestion;
+      const q = suggested && s.protocol.questions.find((x) => x.id === suggested);
+      if (q && !q.facts.every((k) => isEstablished(s.facts, k)) && !s.asked.includes(q.id)) {
+        const by = council.members.find((m) => scripted[m.expert.id]?.suggestsQuestion === suggested)!.expert.name;
+        this.go('ASSESSING', 'Council requested additional information', 'CLINICIAN');
+        this.focus(`Evidence completeness — council asked for ${q.facts.map(factLabel).join(', ')}`, 'ask_question', `Requested by ${by}; recorded as case-specific advice.`);
+        this.askQuestion(q, by);
         return;
       }
-      this.go('REFERRAL_REQUIRED', 'Peer agreed with protocol pathway', 'CLINICIAN');
+      this.go('REFERRAL_REQUIRED', 'Council agreed with protocol pathway', 'CLINICIAN');
       await this.route();
     });
   }
@@ -655,6 +687,25 @@ export class CareGraphAgent {
       this.emit();
       return;
     }
+    const urgentRoute = LEVEL_RANK[triage.level] >= LEVEL_RANK.URGENT;
+    s.forecast = await this.tool(
+      'forecast_time_to_care',
+      `${s.patient.origin} → ${sel.facility.id}`,
+      () =>
+        urgentRoute
+          ? { timeToCareMin: AMBULANCE_TO_PATIENT_MIN + sel.etaMin + HANDOFF_MIN, parts: [`ambulance to patient ~${AMBULANCE_TO_PATIENT_MIN} min`, `transit ~${sel.etaMin} min`, `handoff ~${HANDOFF_MIN} min`], riskModel: '' }
+          : { timeToCareMin: sel.etaMin, parts: [`travel ~${sel.etaMin} min`, `next clinic slot: ${s.scenario.facilityResponse.nonUrgentSlot ?? 'on request'}`], riskModel: '' },
+      (f) => `≈${f.timeToCareMin} min to definitive care (${f.parts.join(' + ')})`,
+      { evidence: 'SIMULATED_OPERATIONAL' },
+    );
+    await this.tool(
+      'forecast_risk',
+      `${s.protocol.id}, model=?`,
+      () => {
+        s.forecast!.riskModel = 'No validated deterioration model registered in country pack for this pathway — not used';
+      },
+      () => 'skipped: no validated model for jurisdiction (governance rule: validated models only)',
+    );
     this.audit({
       actor: 'AGENT',
       kind: 'DECISION',
@@ -744,14 +795,14 @@ export class CareGraphAgent {
       this.go('TRANSPORT_REQUESTED', 'Ambulance request confirmed against accepted destination', 'AGENT');
       await this.pause(1100);
       this.tick(1.5);
-      s.transport = { ...s.transport, vehicle: '108-ALS-14 (simulated)', etaToPatientMin: 11 };
+      s.transport = { ...s.transport, vehicle: '108-ALS-14 (simulated)', etaToPatientMin: AMBULANCE_TO_PATIENT_MIN };
       this.transport('ASSIGNED', 'Vehicle 108-ALS-14 · ETA to patient 11 min');
       this.go('TRANSPORT_ASSIGNED', '108-ALS-14', 'TRANSPORT');
       this.focus('Execution — patient not yet at care', 'track_referral', 'CareGraph stays with the case until handoff is confirmed.');
       await this.pause(900);
       this.transport('EN_ROUTE_TO_PATIENT', 'Ambulance en route');
       await this.pause(1100);
-      this.tick(11);
+      this.tick(AMBULANCE_TO_PATIENT_MIN);
       this.transport('PATIENT_PICKED_UP', `Patient on board; destination ${sel.facility.name}`);
       this.go('PATIENT_DEPARTED', 'Patient picked up', 'TRANSPORT');
       await this.pause(1300);
@@ -822,6 +873,9 @@ export class CareGraphAgent {
 }
 
 class Cancelled extends Error {}
+
+const AMBULANCE_TO_PATIENT_MIN = 11;
+const HANDOFF_MIN = 3;
 
 function maxLevel(q: QuestionScore) {
   return q.outcomes.reduce((m, o) => (LEVEL_RANK[o.level] > LEVEL_RANK[m] ? o.level : m), q.outcomes[0].level);

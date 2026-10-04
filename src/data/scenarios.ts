@@ -2,6 +2,8 @@ import maternal from '../protocols/maternal_demo_v1.json';
 import pediatric from '../protocols/pediatric_bone_demo_v1.json';
 import type { Protocol } from '../engine/types';
 
+export type CouncilChoice = 'AGREE + REFER' | 'ASK ANOTHER QUESTION' | 'MANAGE LOCALLY' | 'CALL ME';
+
 export type DemoAnswer = { bp: string } | { outcome: number } | { unknown: true };
 
 export interface ScenarioDef {
@@ -21,7 +23,8 @@ export interface ScenarioDef {
   unknownKeys: string[];
   facilityResponse: { by: string; role: string; text: string; nonUrgentSlot?: string };
   counterReferral: string;
-  peerResponse?: { text: string; choice: string; suggestsQuestion?: string };
+  /** Scripted council responses (simulated clinicians), keyed by expert id. */
+  council?: Record<string, { choice: CouncilChoice; text: string; suggestsQuestion?: string }>;
 }
 
 export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
@@ -62,10 +65,16 @@ export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
     diagnosisNote: 'Not established — CareGraph does not rank diagnoses; pathway requires specialist evaluation',
     presentKeys: ['fracture_count', 'low_trauma', 'short_stature', 'blue_sclera', 'family_history_fractures', 'hearing_impairment'],
     unknownKeys: ['family_history_fractures', 'hearing_impairment', 'acute_deformity'],
-    peerResponse: {
-      text: 'Ask about hearing problems; specialist referral appropriate.',
-      choice: 'AGREE + REFER',
-      suggestsQuestion: 'q_hearing',
+    council: {
+      'dr-iyer': {
+        choice: 'AGREE + REFER',
+        text: 'Ask about hearing problems; specialist referral appropriate.',
+        suggestsQuestion: 'q_hearing',
+      },
+      'dr-khan': {
+        choice: 'AGREE + REFER',
+        text: 'No acute orthopaedic issue reported. Agree with bone clinic referral; bring prior X-rays.',
+      },
     },
     facilityResponse: {
       by: 'Genetics clinic desk',
