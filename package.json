@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "telephony": "tsx server/telephony.ts",
+    "benchmark": "tsx scripts/benchmark.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
