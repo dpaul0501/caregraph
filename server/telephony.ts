@@ -214,18 +214,28 @@ const xml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const AUDIO_DIR = env.AUDIO_CACHE_DIR ?? '.cache/audio';
 mkdirSync(AUDIO_DIR, { recursive: true });
 
+const pendingTts = new Map<string, Promise<void>>();
+const pendingDemo = new Map<string, Promise<void>>();
+
 async function speech(text: string): Promise<string> {
   const id = createHash('sha1').update(text).digest('hex').slice(0, 16);
   const file = `${AUDIO_DIR}/${id}.mp3`;
   if (!audio.has(id) && existsSync(file)) audio.set(id, readFileSync(file));
   if (!audio.has(id) && VOICE_ENV.ELEVENLABS_API_KEY) {
-    try {
-      const buf = Buffer.from(await synthesize(VOICE_ENV, text));
-      audio.set(id, buf);
-      writeFileSync(file, buf);
-    } catch (e) {
-      console.error('[tts]', (e as Error).message);
+    // Identical prompts requested at the same moment share one synthesis.
+    let p = pendingTts.get(id);
+    if (!p) {
+      p = synthesize(VOICE_ENV, text)
+        .then((ab) => {
+          const buf = Buffer.from(ab);
+          audio.set(id, buf);
+          writeFileSync(file, buf);
+        })
+        .catch((e) => console.error('[tts]', (e as Error).message))
+        .finally(() => pendingTts.delete(id));
+      pendingTts.set(id, p);
     }
+    await p;
   }
   const base = SANDBOX ? '' : env.PUBLIC_URL?.replace(/\/$/, '');
   return audio.has(id) && base !== undefined ? `<Play>${base}/audio/${id}.mp3?t=${encodeURIComponent(text)}</Play>` : `<Say language="hi-IN">${xml(text)}</Say>`;
@@ -533,7 +543,16 @@ const server = createServer(async (req, res) => {
       const lang = url.searchParams.get('lang') ?? 'hi';
       const text = SCENARIOS[sc].intake[lang] ?? SCENARIOS[sc].intake.hi ?? SCENARIOS[sc].intake.en;
       const id = `demo-${sc}-${lang}`;
-      if (!recordings.has(id)) recordings.set(id, { buf: Buffer.from(await synthesize({ ...VOICE_ENV, ELEVENLABS_TTS_MODEL: 'eleven_multilingual_v2' }, text)), type: 'audio/mpeg' });
+      if (!recordings.has(id)) {
+        let p = pendingDemo.get(id);
+        if (!p) {
+          p = synthesize({ ...VOICE_ENV, ELEVENLABS_TTS_MODEL: 'eleven_multilingual_v2' }, text)
+            .then((ab) => void recordings.set(id, { buf: Buffer.from(ab), type: 'audio/mpeg' }))
+            .finally(() => pendingDemo.delete(id));
+          pendingDemo.set(id, p);
+        }
+        await p;
+      }
       return json(res, { url: `sim:${id}`, text, audio: `/sim/recording/${id}` });
     }
     // ---- voice for the website (keys stay on the server) ----

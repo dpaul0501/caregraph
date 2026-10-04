@@ -27,25 +27,49 @@ export async function transcribe(
   form.append('file', audio, 'intake.webm');
   if (languageCode) form.append('language_code', languageCode);
   form.append('tag_audio_events', 'false');
-  const res = await fetch(`${BASE}/speech-to-text`, {
-    method: 'POST',
-    headers: { 'xi-api-key': env.ELEVENLABS_API_KEY },
-    body: form,
-  });
+  const res = await limited(() =>
+    fetch(`${BASE}/speech-to-text`, {
+      method: 'POST',
+      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY! },
+      body: form,
+    }),
+  );
   if (!res.ok) throw new Error(`ElevenLabs STT ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const json = (await res.json()) as { text?: string; language_code?: string };
   return { text: (json.text ?? '').trim(), language_code: json.language_code ?? null, model };
+}
+
+// ElevenLabs allows 5 concurrent requests per account. Queue beyond 4 (one spare) and retry 429s with backoff.
+const MAX_CONCURRENT = 4;
+let active = 0;
+const waiting: (() => void)[] = [];
+async function limited(call: () => Promise<Response>): Promise<Response> {
+  if (active >= MAX_CONCURRENT) await new Promise<void>((r) => waiting.push(r));
+  active++;
+  try {
+    for (let attempt = 0; ; attempt++) {
+      const res = await call();
+      if (res.status !== 429 || attempt >= 4) return res;
+      await res.body?.cancel();
+      await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 200));
+    }
+  } finally {
+    active--;
+    waiting.shift()?.();
+  }
 }
 
 /** Text → speech (multilingual) for spoken questions in the worker's language. */
 export async function synthesize(env: VoiceEnv, text: string): Promise<ArrayBuffer> {
   if (!env.ELEVENLABS_API_KEY) throw new Error('ELEVENLABS_API_KEY not configured');
   const voice = env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
-  const res = await fetch(`${BASE}/text-to-speech/${voice}?output_format=mp3_44100_128`, {
-    method: 'POST',
-    headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'content-type': 'application/json', accept: 'audio/mpeg' },
-    body: JSON.stringify({ text, model_id: env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2' }),
-  });
+  const res = await limited(() =>
+    fetch(`${BASE}/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+      method: 'POST',
+      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY!, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: env.ELEVENLABS_TTS_MODEL || 'eleven_multilingual_v2' }),
+    }),
+  );
   if (!res.ok) throw new Error(`ElevenLabs TTS ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return await res.arrayBuffer();
 }
