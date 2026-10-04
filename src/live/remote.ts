@@ -32,6 +32,8 @@ export interface OutboxItem {
  * UI uses on the in-browser agent; actions are forwarded to the server.
  */
 export class RemoteAgent {
+  /** Marker (instead of instanceof checks, which break across SSR module graphs). */
+  readonly isRemote = true;
   private state: Session;
   private listeners = new Set<() => void>();
   private es: EventSource | null = null;

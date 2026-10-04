@@ -4,7 +4,7 @@ import { clockLabel, cx } from '@/ui/format';
 import { Recorder, speak, transcribe } from '@/ui/voice';
 import type { Message } from '@/engine/orchestrator';
 import type { DecisionPacket } from '@/engine/summary';
-import { CareGraphAgent, PACK } from '@/engine/orchestrator';
+import { PACK } from '@/engine/orchestrator';
 import { SCENARIOS } from '@/data/scenarios';
 import { useDemo } from '@/ui/useAgent';
 import { LEVEL_RANK } from '@/engine/types';
@@ -104,7 +104,7 @@ function EmptyState() {
       <div className="rounded-xl border border-dashed border-line p-4 text-sm text-slate-600">
         Describe any patient — speak (mic) or type, in any language. CareGraph chooses the pathway, asks only what matters, and routes.
       </div>
-      {demo && agent instanceof CareGraphAgent && (
+      {demo && !(agent as unknown as { isRemote?: boolean }).isRemote && (
         <div className="grid gap-2">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Demo mode · play a case</div>
           {DEMOS.map((d) => (
