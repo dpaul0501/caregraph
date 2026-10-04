@@ -1,5 +1,5 @@
 import { evaluate, factsIn } from './logic';
-import type { Facts, Protocol, ProtocolRule, QuestionDef, QuestionScore, StopReason, TriageResult } from './types';
+import type { Facts, Protocol, ProtocolRule, QuestionDef, QuestionScore, StopReason, TriageLevel, TriageResult } from './types';
 import { LEVEL_RANK } from './types';
 
 /** Deterministic protocol execution. No model can override the result. */
@@ -53,7 +53,7 @@ const ACTION_CHANGE_VALUE = 0.5;
 export function selectNextQuestion(
   protocol: Protocol,
   facts: Facts,
-  opts: { asked: string[]; equipment: string[]; modelValue?: Record<string, number> },
+  opts: { asked: string[]; equipment: string[]; modelValue?: Record<string, number>; levelWeights?: Partial<Record<TriageLevel, number>> },
 ): { ranked: QuestionScore[]; chosen: QuestionScore | null; stopReason: StopReason | null } {
   const current = runTriage(protocol, facts);
   const curRank = LEVEL_RANK[current.level];
@@ -68,10 +68,12 @@ export function selectNextQuestion(
       const t = runTriage(protocol, hypo);
       return { label: o.label, prior: priors[i], level: t.level, action: t.action };
     });
-    // Decision value: escalation in urgency, or a different action at the same urgency.
+    // Decision value: escalation in urgency (weighted by the country's cost of missing that
+    // level), or a different action at the same urgency.
     const expectedGain = outcomes.reduce((s, o) => {
       const delta = LEVEL_RANK[o.level] - curRank;
-      const value = delta > 0 ? delta : delta === 0 && o.action !== current.action ? ACTION_CHANGE_VALUE : 0;
+      const w = opts.levelWeights?.[o.level] ?? 1;
+      const value = delta > 0 ? delta * w : delta === 0 && o.action !== current.action ? ACTION_CHANGE_VALUE : 0;
       return s + o.prior * value;
     }, 0);
     const ruleGain = Math.round(expectedGain * 100) / 100;
@@ -104,3 +106,31 @@ export function missingInformation(protocol: Protocol, facts: Facts, triage: Tri
   }
   return { unknown, critical: [...critical], known: protocol.decision_facts.length - unknown.length, total: protocol.decision_facts.length };
 }
+
+/**
+ * Escalation under residual uncertainty. For decisive questions that were asked but
+ * answered "don't know", estimate the probability that the missing answer hides an
+ * emergency (from the same priors used to choose questions, history-adjusted).
+ * The caller escalates when this exceeds the country's cost-derived threshold
+ * 1 / (1 + weight_EMERGENCY): the point where the expected cost of missing an
+ * emergency exceeds the cost of an unnecessary urgent referral.
+ */
+export function hiddenEmergencyRisk(protocol: Protocol, facts: Facts, unanswered: string[]) {
+  const drivers: { question: string; p: number }[] = [];
+  for (const id of unanswered) {
+    const q = protocol.questions.find((x) => x.id === id);
+    if (!q) continue;
+    const { priors } = priorsFor(q, facts);
+    let p = 0;
+    q.outcomes.forEach((o, i) => {
+      const hypo: Facts = { ...facts };
+      for (const [k, v] of Object.entries(o.values)) hypo[k] = { key: k, value: v, status: 'REPORTED', source: 'hypothetical', evidence: 'FRONTLINE_REPORT', at: 0 };
+      if (runTriage(protocol, hypo).level === 'EMERGENCY') p += priors[i];
+    });
+    if (p > 0) drivers.push({ question: id, p: Math.round(p * 1000) / 1000 });
+  }
+  const pAny = 1 - drivers.reduce((acc, d) => acc * (1 - d.p), 1);
+  return { p: Math.round(pAny * 1000) / 1000, drivers };
+}
+
+export const escalationThreshold = (wEmergency: number) => 1 / (1 + wEmergency);

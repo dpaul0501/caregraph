@@ -181,16 +181,19 @@ describe('maternal end-to-end (demo case A)', () => {
     expect(s.audit.filter((e) => e.kind === 'STATE').length).toBe(s.stateHistory.length + s.transport.history.length);
   });
 
-  it('missing-information path: BP unavailable → stays UNKNOWN, routes to same-day BP review (no assumption)', async () => {
+  it('missing-information path: BP unavailable → stays UNKNOWN; escalates under uncertainty, never assumes normal', async () => {
     const a = agent('maternal');
     await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
     await a.answer('q_bp', { unknown: true });
+    // Remaining cheap danger-sign questions get answered "No".
+    for (let i = 0; i < 6 && a.getState().awaiting === 'ANSWER'; i++) await a.answer(a.getState().pendingQuestion!.id, { outcome: 1 });
     const s = a.getState();
     expect(s.facts.sbp.status).toBe('UNKNOWN');
-    expect(s.triage?.level).toBe('PRIORITY');
-    expect(s.triage?.fired[0].id).toBe('M-06');
-    expect(s.asked).toEqual(['q_bp']);
-    expect(s.facilitySearch?.capabilityId).toBe('bp_review');
+    // History of gestational hypertension → P(severe BP) 35% ≥ 1/(1+5) threshold → URGENT, route as M-01 would.
+    expect(s.escalation?.p).toBeGreaterThanOrEqual(0.3);
+    expect(s.escalation?.rule).toBe('M-01');
+    expect(s.triage?.level).toBe('URGENT');
+    expect(s.triage?.requiredCapability).toBe('cemonc');
     expect(s.awaiting).toBe('AUTHORIZE_TRANSFER');
   });
 
@@ -224,6 +227,9 @@ describe('pediatric end-to-end (demo case B)', () => {
     await a.answer('q_trauma', { outcome: 0 });
     expect(a.getState().pendingQuestion?.id).toBe('q_sclera');
     await a.answer('q_sclera', { outcome: 0 });
+    // Cheap safety check now worth asking (missing an acute fracture is weighted higher).
+    expect(a.getState().pendingQuestion?.id).toBe('q_acute');
+    await a.answer('q_acute', { outcome: 1 });
     let s = a.getState();
     expect(s.stopReason).toBe('DIMINISHING_VALUE');
     expect(s.awaiting).toBe('AUTHORIZE_COUNCIL');

@@ -39,7 +39,7 @@ export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
       en: 'Thirty-one-year-old woman, 34 weeks pregnant, severe headache since morning and swelling.',
       hi: '31 साल की महिला, 34 हफ़्ते की गर्भवती, सुबह से तेज़ सिरदर्द और सूजन।',
     },
-    demoAnswers: { q_bp: { bp: '166/108' } },
+    demoAnswers: { q_bp: { bp: '166/108' }, q_convulsions: { outcome: 1 }, q_bleeding: { outcome: 1 }, q_visual: { outcome: 1 }, q_epigastric: { outcome: 1 }, q_chest: { outcome: 1 } },
     diagnosisNote: 'Not established — not required to choose the safe next action',
     presentKeys: ['severe_headache', 'symptom_onset', 'edema', 'dizziness', 'visual_disturbance', 'convulsions', 'vaginal_bleeding'],
     unknownKeys: ['visual_disturbance', 'convulsions', 'vaginal_bleeding', 'epigastric_pain'],
@@ -61,7 +61,7 @@ export const SCENARIOS: Record<ScenarioDef['id'], ScenarioDef> = {
     intake: {
       en: 'Eight-year-old boy. This is his third fracture this year. The bones seem to break easily. He is also short for his age.',
     },
-    demoAnswers: { q_trauma: { outcome: 0 }, q_sclera: { outcome: 0 }, q_family: { unknown: true }, q_hearing: { outcome: 0 } },
+    demoAnswers: { q_trauma: { outcome: 0 }, q_sclera: { outcome: 0 }, q_acute: { outcome: 1 }, q_family: { unknown: true }, q_hearing: { outcome: 0 } },
     diagnosisNote: 'Not established — CareGraph does not rank diagnoses; pathway requires specialist evaluation',
     presentKeys: ['fracture_count', 'low_trauma', 'short_stature', 'blue_sclera', 'family_history_fractures', 'hearing_impairment'],
     unknownKeys: ['family_history_fractures', 'hearing_impairment', 'acute_deformity'],

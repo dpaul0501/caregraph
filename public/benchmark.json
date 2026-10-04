@@ -1,0 +1,224 @@
+{
+  "generated": "2026-10-04T02:17:42.018Z",
+  "n": 5000,
+  "emergencyShare": 0.1274,
+  "latency": {
+    "p50": 0.043791999999939435,
+    "p95": 0.10087500000008731,
+    "n": 180922
+  },
+  "rows": [
+    {
+      "scenario": "clean",
+      "policy": "caregraph",
+      "label": "**CareGraph** (value of information + safety shield + escalation under uncertainty)",
+      "questions": 3.4994,
+      "exact": 0.9562,
+      "under": 0.0338,
+      "severeUnder": 0.007849293563579277,
+      "over": 0.01,
+      "flaggedShare": 0,
+      "agreeWhenConfident": 0.9562,
+      "agreeWhenFlagged": 0
+    },
+    {
+      "scenario": "clean",
+      "policy": "ablation_no_escalation",
+      "label": "Ablation: CareGraph without escalation under uncertainty",
+      "questions": 3.4994,
+      "exact": 0.9562,
+      "under": 0.0338,
+      "severeUnder": 0.007849293563579277,
+      "over": 0.01
+    },
+    {
+      "scenario": "clean",
+      "policy": "ablation_random_questions",
+      "label": "Ablation: same number of questions, chosen at random",
+      "questions": 3.4994,
+      "exact": 0.812,
+      "under": 0.1822,
+      "severeUnder": 0.6216640502354788,
+      "over": 0.0058
+    },
+    {
+      "scenario": "clean",
+      "policy": "checklist_3v",
+      "label": "Full checklist (asks every question)",
+      "questions": 6,
+      "exact": 0.9568,
+      "under": 0.0332,
+      "severeUnder": 0.007849293563579277,
+      "over": 0.01
+    },
+    {
+      "scenario": "clean",
+      "policy": "danger_signs_only",
+      "label": "Danger signs only (no questions)",
+      "questions": 0,
+      "exact": 0.691,
+      "under": 0.309,
+      "severeUnder": 0.7880690737833596,
+      "over": 0
+    },
+    {
+      "scenario": "realistic",
+      "policy": "caregraph",
+      "label": "**CareGraph** (value of information + safety shield + escalation under uncertainty)",
+      "questions": 3.4562,
+      "exact": 0.8194,
+      "under": 0.073,
+      "severeUnder": 0.10518053375196232,
+      "over": 0.1076,
+      "flaggedShare": 0.0236,
+      "agreeWhenConfident": 0.8361327324866857,
+      "agreeWhenFlagged": 0.1271186440677966
+    },
+    {
+      "scenario": "realistic",
+      "policy": "ablation_no_escalation",
+      "label": "Ablation: CareGraph without escalation under uncertainty",
+      "questions": 3.4562,
+      "exact": 0.821,
+      "under": 0.0842,
+      "severeUnder": 0.16483516483516483,
+      "over": 0.0948
+    },
+    {
+      "scenario": "realistic",
+      "policy": "ablation_random_questions",
+      "label": "Ablation: same number of questions, chosen at random",
+      "questions": 3.4562,
+      "exact": 0.7342,
+      "under": 0.2068,
+      "severeUnder": 0.6295133437990581,
+      "over": 0.059
+    },
+    {
+      "scenario": "realistic",
+      "policy": "checklist_3v",
+      "label": "Full checklist (asks every question)",
+      "questions": 6,
+      "exact": 0.8082,
+      "under": 0.0944,
+      "severeUnder": 0.20251177394034536,
+      "over": 0.0974
+    },
+    {
+      "scenario": "realistic",
+      "policy": "danger_signs_only",
+      "label": "Danger signs only (no questions)",
+      "questions": 0,
+      "exact": 0.6924,
+      "under": 0.3076,
+      "severeUnder": 0.7770800627943485,
+      "over": 0
+    },
+    {
+      "scenario": "noisy",
+      "policy": "caregraph",
+      "label": "**CareGraph** (value of information + safety shield + escalation under uncertainty)",
+      "questions": 3.5086,
+      "exact": 0.7056,
+      "under": 0.1256,
+      "severeUnder": 0.16483516483516483,
+      "over": 0.1688,
+      "flaggedShare": 0.0568,
+      "agreeWhenConfident": 0.7377014418999152,
+      "agreeWhenFlagged": 0.17253521126760563
+    },
+    {
+      "scenario": "noisy",
+      "policy": "ablation_no_escalation",
+      "label": "Ablation: CareGraph without escalation under uncertainty",
+      "questions": 3.5086,
+      "exact": 0.7064,
+      "under": 0.1536,
+      "severeUnder": 0.30141287284144425,
+      "over": 0.14
+    },
+    {
+      "scenario": "noisy",
+      "policy": "ablation_random_questions",
+      "label": "Ablation: same number of questions, chosen at random",
+      "questions": 3.5086,
+      "exact": 0.6718,
+      "under": 0.2368,
+      "severeUnder": 0.6514913657770801,
+      "over": 0.0914
+    },
+    {
+      "scenario": "noisy",
+      "policy": "checklist_3v",
+      "label": "Full checklist (asks every question)",
+      "questions": 6,
+      "exact": 0.689,
+      "under": 0.1688,
+      "severeUnder": 0.3877551020408163,
+      "over": 0.1422
+    },
+    {
+      "scenario": "noisy",
+      "policy": "danger_signs_only",
+      "label": "Danger signs only (no questions)",
+      "questions": 0,
+      "exact": 0.6702,
+      "under": 0.3298,
+      "severeUnder": 0.8226059654631083,
+      "over": 0
+    },
+    {
+      "scenario": "very noisy",
+      "policy": "caregraph",
+      "label": "**CareGraph** (value of information + safety shield + escalation under uncertainty)",
+      "questions": 3.628,
+      "exact": 0.6876,
+      "under": 0.1694,
+      "severeUnder": 0.28885400313971743,
+      "over": 0.143,
+      "flaggedShare": 0.0812,
+      "agreeWhenConfident": 0.7333478450152373,
+      "agreeWhenFlagged": 0.16995073891625614
+    },
+    {
+      "scenario": "very noisy",
+      "policy": "ablation_no_escalation",
+      "label": "Ablation: CareGraph without escalation under uncertainty",
+      "questions": 3.628,
+      "exact": 0.6918,
+      "under": 0.2092,
+      "severeUnder": 0.4662480376766091,
+      "over": 0.099
+    },
+    {
+      "scenario": "very noisy",
+      "policy": "ablation_random_questions",
+      "label": "Ablation: same number of questions, chosen at random",
+      "questions": 3.628,
+      "exact": 0.6656,
+      "under": 0.2728,
+      "severeUnder": 0.7032967032967034,
+      "over": 0.0616
+    },
+    {
+      "scenario": "very noisy",
+      "policy": "checklist_3v",
+      "label": "Full checklist (asks every question)",
+      "questions": 6,
+      "exact": 0.6764,
+      "under": 0.2242,
+      "severeUnder": 0.5368916797488226,
+      "over": 0.0994
+    },
+    {
+      "scenario": "very noisy",
+      "policy": "danger_signs_only",
+      "label": "Danger signs only (no questions)",
+      "questions": 0,
+      "exact": 0.6596,
+      "under": 0.3404,
+      "severeUnder": 0.8524332810047096,
+      "over": 0
+    }
+  ]
+}

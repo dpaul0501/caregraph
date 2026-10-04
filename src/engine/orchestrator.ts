@@ -13,10 +13,10 @@ import { MODELS } from './models';
 import { factsIn } from './logic';
 import { assertTransition, assertTransportTransition, type ReferralState, type TransportState } from './referral';
 import { buildPacket, type DecisionPacket } from './summary';
-import { isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
+import { escalationThreshold, hiddenEmergencyRisk, isEstablished, missingInformation, runTriage, selectNextQuestion } from './triage';
 import { assessUncertainty, type Conflict, type UncertaintyDim } from './uncertainty';
 import type {
-  Actor, AuditEvent, EvidenceClass, Fact, Facts, Protocol, QuestionDef, QuestionScore, StopReason, TriageResult,
+  Actor, AuditEvent, EvidenceClass, Fact, Facts, Protocol, QuestionDef, QuestionScore, StopReason, TriageLevel, TriageResult,
 } from './types';
 import { LEVEL_RANK } from './types';
 
@@ -113,6 +113,7 @@ export interface Session {
   consensus: string | null;
   clusters: ClusterAssessment[];
   risk: RiskAssessment | null;
+  escalation: null | { p: number; threshold: number; drivers: { question: string; p: number }[]; rule: string | null };
   calibration: Calibration;
   forecast: null | { timeToCareMin: number; parts: string[]; riskModel: string };
   peerOpinions: PeerOpinion[];
@@ -170,6 +171,7 @@ function freshSession(scenarioId: ScenarioDef['id'], lang: Lang, options: Sessio
     consensus: null,
     clusters: [],
     risk: null,
+    escalation: null,
     calibration: priorCalibration(PACK.code),
     forecast: null,
     peerOpinions: [],
@@ -510,7 +512,13 @@ export class CareGraphAgent {
     const sel = await this.tool(
       'select_next_question',
       'case',
-      () => selectNextQuestion(p, s.facts, { asked: s.asked, equipment: s.worker.equipment, modelValue }),
+      () =>
+        selectNextQuestion(p, s.facts, {
+          asked: s.asked,
+          equipment: s.worker.equipment,
+          modelValue,
+          levelWeights: PACK.decision_costs.under_triage_weight as Record<TriageLevel, number>,
+        }),
       (r) =>
         r.chosen
           ? `ask ${r.chosen.question.id} (expected decision value ${r.chosen.expectedGain})`
@@ -553,13 +561,45 @@ export class CareGraphAgent {
       });
     }
 
-    const needsReview = triage.fired.find((r) => r.requires_peer_review);
+    // Escalation under residual uncertainty: a decisive question was answered "don't know".
+    if (sel.stopReason !== 'EMERGENCY_CRITERION_MET') {
+      const unanswered = s.asked.filter((id) => p.questions.find((q) => q.id === id)?.facts.every((k) => s.facts[k]?.status === 'UNKNOWN'));
+      const hidden = hiddenEmergencyRisk(p, s.facts, unanswered);
+      const weights = PACK.decision_costs.under_triage_weight as Record<TriageLevel, number>;
+      const thr = escalationThreshold(weights.EMERGENCY);
+      if (hidden.p >= thr && LEVEL_RANK[triage.level] < LEVEL_RANK.URGENT) {
+        const hiddenRule = triage.undetermined.find((r) => r.level === 'EMERGENCY' && hidden.drivers.some((d) => p.questions.find((q) => q.id === d.question)!.facts.some((k) => factsIn(r.when).includes(k))));
+        const drivers = hidden.drivers.map((d) => `${p.questions.find((q) => q.id === d.question)!.text.en.replace(/\?$/, '')} (P≈${Math.round(d.p * 100)}%)`).join('; ');
+        s.escalation = { p: hidden.p, threshold: thr, drivers: hidden.drivers, rule: hiddenRule?.id ?? null };
+        s.triage = {
+          ...triage,
+          level: 'URGENT',
+          action: `Urgent referral under uncertainty — a decisive answer is unknown`,
+          requiredCapability: hiddenRule?.required_capability ?? triage.requiredCapability,
+        };
+        this.audit({
+          actor: 'AGENT',
+          kind: 'DECISION',
+          title: `Escalated under uncertainty: P(hidden emergency) ${Math.round(hidden.p * 100)}% ≥ ${Math.round(thr * 100)}% threshold`,
+          detail: `Unanswered: ${drivers}. Threshold = 1/(1+${weights.EMERGENCY}) from country cost weights.`,
+          evidence: 'VERIFIED_CLINICAL',
+        });
+        this.say({
+          role: 'agent',
+          kind: 'alert',
+          text: `A decisive answer is unknown (${drivers}). The chance it hides an emergency (${Math.round(hidden.p * 100)}%) is above the ${Math.round(thr * 100)}% threshold set by the country pack, so CareGraph escalates to URGENT rather than guess.`,
+        });
+      }
+    }
+
+    const final = s.triage!;
+    const needsReview = final.fired.find((r) => r.requires_peer_review);
     if (needsReview && s.peerOpinions.length === 0) return this.prepareCouncil();
-    if (triage.requiredCapability) {
-      this.go('REFERRAL_REQUIRED', triage.action, 'RULE_ENGINE');
+    if (final.requiredCapability) {
+      this.go('REFERRAL_REQUIRED', final.action, 'RULE_ENGINE');
       return this.route();
     }
-    this.say({ role: 'agent', kind: 'success', text: `No referral criterion met. ${triage.action}.` });
+    this.say({ role: 'agent', kind: 'success', text: `No referral criterion met. ${final.action}.` });
     this.go('CLOSED', 'No referral required', 'RULE_ENGINE');
     s.awaiting = 'DONE';
   }
