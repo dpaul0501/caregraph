@@ -1,0 +1,65 @@
+{
+  "id": "minipiers_2014",
+  "name": "miniPIERS",
+  "outcome": "Adverse maternal outcome (death or serious morbidity) within 48 h",
+  "pathway": "maternal_demo_v1",
+  "source": "Payne BA et al. A risk prediction model for the assessment and triage of women with hypertensive disorders of pregnancy in low-resourced settings: the miniPIERS multi-country prospective cohort. PLoS Med 2014;11(1):e1001589",
+  "url": "https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1001589",
+  "validation": {
+    "development": "2,081 women, 5 low- and middle-income countries, 2008–2012",
+    "auc_internal": 0.768,
+    "auc_external": 0.713,
+    "published_threshold": 0.25,
+    "lr_positive_at_threshold": 5.09
+  },
+  "population": {
+    "label": "Pregnant ≥20 weeks with hypertension (≥140/90)",
+    "when": { "all": [
+      { "fact": "pregnant", "eq": true },
+      { "fact": "gestational_weeks", "gte": 20 },
+      { "any": [ { "fact": "sbp", "gte": 140 }, { "fact": "dbp", "gte": 90 } ] }
+    ] }
+  },
+  "intercept": -5.77,
+  "terms": [
+    {
+      "id": "multiparity", "label": "Multiparous", "kind": "indicator", "coef": -0.298,
+      "when": { "fact": "multiparous", "eq": true },
+      "unknown": [ { "x": 1, "p": 0.6 }, { "x": 0, "p": 0.4 } ]
+    },
+    {
+      "id": "ln_ga", "label": "Gestational age (ln weeks)", "kind": "ln", "coef": -1.07, "fact": "gestational_weeks",
+      "unknown": [ { "x": 28, "p": 0.3 }, { "x": 34, "p": 0.4 }, { "x": 38, "p": 0.3 } ]
+    },
+    {
+      "id": "ln_sbp", "label": "Systolic BP (ln mmHg)", "kind": "ln", "coef": 1.34, "fact": "sbp",
+      "unknown": [ { "x": 145, "p": 0.5 }, { "x": 155, "p": 0.3 }, { "x": 170, "p": 0.2 } ]
+    },
+    {
+      "id": "proteinuria", "label": "Dipstick proteinuria", "kind": "categorical", "fact": "proteinuria_dipstick",
+      "levels": [
+        { "label": "neg–1+", "max": 1, "coef": 0 },
+        { "label": "2+", "eq": 2, "coef": -0.218 },
+        { "label": "3+", "eq": 3, "coef": 0.424 },
+        { "label": "4+", "min": 4, "coef": 0.512 }
+      ],
+      "unknown": [ { "level": 0, "p": 0.4 }, { "level": 1, "p": 0.25 }, { "level": 2, "p": 0.2 }, { "level": 3, "p": 0.15 } ]
+    },
+    {
+      "id": "bleed_abdo", "label": "Vaginal bleeding with abdominal pain", "kind": "indicator", "coef": 1.18,
+      "when": { "all": [ { "fact": "vaginal_bleeding", "eq": true }, { "fact": "abdominal_pain", "eq": true } ] },
+      "unknown": [ { "x": 1, "p": 0.04 }, { "x": 0, "p": 0.96 } ]
+    },
+    {
+      "id": "headache_visual", "label": "Headache and/or visual changes", "kind": "indicator", "coef": 0.422,
+      "when": { "any": [ { "fact": "severe_headache", "eq": true }, { "fact": "headache", "eq": true }, { "fact": "visual_disturbance", "eq": true } ] },
+      "unknown": [ { "x": 1, "p": 0.35 }, { "x": 0, "p": 0.65 } ]
+    },
+    {
+      "id": "chest_dyspnoea", "label": "Chest pain and/or dyspnoea", "kind": "indicator", "coef": 0.847,
+      "when": { "any": [ { "fact": "chest_pain", "eq": true }, { "fact": "breathlessness", "eq": true } ] },
+      "unknown": [ { "x": 1, "p": 0.06 }, { "x": 0, "p": 0.94 } ]
+    }
+  ],
+  "unknown_priors_note": "Distributions for UNKNOWN inputs are demo priors (to be replaced by country data and learned from outcomes). Coefficients are the published values."
+}

@@ -193,6 +193,12 @@ export function ReasoningPanel() {
         <div className="mt-1.5">
           <ToolTrace />
         </div>
+        {(s.awaiting === 'AUTHORIZE_TRANSFER' || s.awaiting === 'AUTHORIZE_COUNCIL' || s.awaiting === 'ANSWER') && !s.busy && (
+          <div className="appear mt-1.5 flex items-center gap-2 rounded-lg bg-amber-100 px-2.5 py-1.5 text-[12px] font-semibold text-amber-900">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+            {s.awaiting === 'ANSWER' ? 'Waiting for the health worker to answer — see conversation' : 'Waiting for human authorization — tap the button in the conversation'}
+          </div>
+        )}
         {s.focus && (
           <div className="mt-1 text-[12px]">
             <span className="font-semibold text-slate-500">Now: </span>

@@ -6,7 +6,9 @@ import { Conversation, PatientStrip } from '@/ui/components/Left';
 import { ReasoningPanel } from '@/ui/components/Reasoning';
 import { DetailsDrawer, Header } from '@/ui/components/Chrome';
 
-const agent = new CareGraphAgent('maternal');
+// Keep the live session across hot-module reloads during development.
+const agent: CareGraphAgent = import.meta.hot?.data.agent ?? new CareGraphAgent('maternal');
+if (import.meta.hot) import.meta.hot.data.agent = agent;
 if (typeof window !== 'undefined') (window as unknown as { caregraph: CareGraphAgent }).caregraph = agent;
 
 export default function App() {
