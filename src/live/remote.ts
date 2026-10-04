@@ -1,7 +1,22 @@
 import { CareGraphAgent, type Session } from '@/engine/orchestrator';
 
-/** Base URL of the telephony server (proxied as /tel in dev; set VITE_TELEPHONY_URL when deployed). */
-export const TEL = (import.meta.env.VITE_TELEPHONY_URL as string | undefined) ?? '/tel';
+/**
+ * Base URL of the telephony server. Resolution order:
+ *   ?tel=https://… (remembered in this browser) → VITE_TELEPHONY_URL → '/tel' (dev proxy).
+ * Lets a statically hosted UI (e.g. Lovable) follow a live server without rebuilding.
+ */
+function resolveTelephonyUrl(): string {
+  try {
+    const q = new URLSearchParams(location.search).get('tel');
+    if (q) localStorage.setItem('caregraph.tel', q.replace(/\/$/, ''));
+    const saved = localStorage.getItem('caregraph.tel');
+    if (saved) return saved;
+  } catch {
+    /* storage unavailable */
+  }
+  return (import.meta.env.VITE_TELEPHONY_URL as string | undefined) ?? '/tel';
+}
+export const TEL = resolveTelephonyUrl();
 
 export interface OutboxItem {
   id: number;
@@ -109,6 +124,7 @@ export async function simDemoRecording(scenario: string): Promise<{ url: string;
 }
 
 export async function telephonyHealth(): Promise<{ mode: string; twilio: boolean; elevenlabs: boolean } | null> {
+  if (TEL === '/tel' && !import.meta.env.DEV) return null; // no server configured for this static deployment
   try {
     const r = await fetch(`${TEL}/live/health`, { signal: AbortSignal.timeout(2000) });
     return r.ok ? r.json() : null;

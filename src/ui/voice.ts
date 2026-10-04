@@ -18,6 +18,8 @@ function headers(extra: Record<string, string> = {}): Record<string, string> {
 }
 
 export async function voiceHealth(): Promise<{ elevenlabs: boolean }> {
+  // Static hosting without Supabase has no voice backend: skip the probe (no console 404).
+  if (!SUPABASE_URL && !import.meta.env.DEV) return { elevenlabs: false };
   try {
     const r = await fetch(endpoint('voice-health'), { headers: headers(), signal: AbortSignal.timeout(3000) });
     if (!r.ok) return { elevenlabs: false };
