@@ -17,7 +17,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { CareGraphAgent, PACK } from '../src/engine/orchestrator.ts';
 import { SCENARIOS, type CouncilChoice, type ScenarioDef } from '../src/data/scenarios.ts';
 import { LEVEL_RANK } from '../src/engine/types.ts';
@@ -34,7 +34,10 @@ function loadEnv() {
 }
 loadEnv();
 const env = process.env;
-const PORT = Number(env.TELEPHONY_PORT ?? 8787);
+const PORT = Number(env.PORT ?? env.TELEPHONY_PORT ?? 8787);
+// Public base URL: explicit, or provided by the host (Railway / Render / Cloud Run custom).
+const hostUrl = env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : env.RENDER_EXTERNAL_URL;
+if (!env.PUBLIC_URL && hostUrl) env.PUBLIC_URL = hostUrl; // process.env stores strings: never assign undefined
 const SID = env.TWILIO_ACCOUNT_SID ?? '';
 const TOKEN = env.TWILIO_AUTH_TOKEN ?? '';
 const WA_FROM = env.TWILIO_WHATSAPP_FROM ?? 'whatsapp:+14155238886';
@@ -187,11 +190,18 @@ const recordings = new Map<string, { buf: Buffer; type: string }>();
 let recSeq = 0;
 const xml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+const AUDIO_DIR = env.AUDIO_CACHE_DIR ?? '.cache/audio';
+mkdirSync(AUDIO_DIR, { recursive: true });
+
 async function speech(text: string): Promise<string> {
   const id = createHash('sha1').update(text).digest('hex').slice(0, 16);
+  const file = `${AUDIO_DIR}/${id}.mp3`;
+  if (!audio.has(id) && existsSync(file)) audio.set(id, readFileSync(file));
   if (!audio.has(id) && VOICE_ENV.ELEVENLABS_API_KEY) {
     try {
-      audio.set(id, Buffer.from(await synthesize(VOICE_ENV, text)));
+      const buf = Buffer.from(await synthesize(VOICE_ENV, text));
+      audio.set(id, buf);
+      writeFileSync(file, buf);
     } catch (e) {
       console.error('[tts]', (e as Error).message);
     }

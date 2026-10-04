@@ -11,11 +11,13 @@
     "test": "vitest run",
     "telephony": "tsx server/telephony.ts",
     "benchmark": "tsx scripts/benchmark.ts",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && vitest run",
+    "start": "tsx server/telephony.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -24,9 +26,11 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }
