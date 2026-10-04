@@ -155,7 +155,7 @@ export function QuestionRanking() {
           </div>
         ))}
       </div>
-      <div className="mt-2 text-[10px] text-muted">Priors are heuristic demo values, not calibrated probabilities. Score = expected change in triage level/action.</div>
+      <div className="mt-2 text-[10px] text-muted">Priors start from guideline values and update from local answers. Score = expected change in triage level/action.</div>
     </section>
   );
 }

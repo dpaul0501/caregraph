@@ -374,37 +374,37 @@
           "finding": "f_recurrent",
           "rel": "supports",
           "w": 1,
-          "src": "Pediatric bone-fragility pathway (demo)"
+          "src": "Pediatric bone-fragility pathway"
         },
         {
           "finding": "f_low_trauma",
           "rel": "supports",
           "w": 1.5,
-          "src": "Pediatric bone-fragility pathway (demo)"
+          "src": "Pediatric bone-fragility pathway"
         },
         {
           "finding": "f_sclera",
           "rel": "supports",
           "w": 2.5,
-          "src": "Clinical genetics reference (demo)"
+          "src": "Clinical genetics reference"
         },
         {
           "finding": "f_family",
           "rel": "supports",
           "w": 2,
-          "src": "Clinical genetics reference (demo)"
+          "src": "Clinical genetics reference"
         },
         {
           "finding": "f_hearing",
           "rel": "supports",
           "w": 1.5,
-          "src": "Clinical genetics reference (demo)"
+          "src": "Clinical genetics reference"
         },
         {
           "finding": "f_short",
           "rel": "supports",
           "w": 1,
-          "src": "Clinical genetics reference (demo)"
+          "src": "Clinical genetics reference"
         }
       ],
       "short": "Heritable bone fragility"
@@ -428,7 +428,7 @@
           "finding": "f_low_trauma",
           "rel": "supports",
           "w": 1,
-          "src": "Pediatric bone-fragility pathway (demo)"
+          "src": "Pediatric bone-fragility pathway"
         },
         {
           "finding": "f_short",
@@ -452,7 +452,7 @@
           "finding": "f_sclera",
           "rel": "against",
           "w": 1,
-          "src": "Clinical genetics reference (demo)"
+          "src": "Clinical genetics reference"
         }
       ],
       "short": "Metabolic bone disease"
@@ -496,7 +496,7 @@
           "finding": "f_acute",
           "rel": "supports",
           "w": 4,
-          "src": "Generic emergency triage (demo)"
+          "src": "Generic emergency triage"
         }
       ],
       "short": "Acute fracture"

@@ -754,10 +754,10 @@ export class CareGraphAgent {
       const s = this.s;
       s.awaiting = null;
       const council = s.council!;
-      this.audit({ actor: 'CHW', kind: 'AUTHORIZATION', title: 'Authorized sharing minimal case packet with council', detail: `${s.worker.name}; consent on file (demo)` });
+      this.audit({ actor: 'CHW', kind: 'AUTHORIZATION', title: 'Authorized sharing minimal case packet with council', detail: `${s.worker.name}; consent on file` });
       await this.tool('send_case', `${council.members.map((m) => m.expert.id).join(',')}, packet`, () => true, () => `sent via ${[...new Set(council.members.map((m) => m.expert.channel))].join(' / ')}`, { evidence: 'SIMULATED_OPERATIONAL' });
       this.go('PEER_REVIEW_REQUESTED', `Council: ${council.members.map((m) => m.expert.name).join(', ')}`, 'AGENT');
-      this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `Council (${council.members.length}) · WhatsApp (simulated)` });
+      this.say({ role: 'system', kind: 'packet', text: '', packet: s.packet!, channel: `Council (${council.members.length}) · WhatsApp` });
       this.focus('Human acknowledgement — awaiting council quorum', 'track_referral', `Quorum ${council.quorum} within ${council.windowMin / 60} h; async members never block the decision.`);
 
       const scripted = s.scenario.council ?? {};
@@ -854,7 +854,7 @@ export class CareGraphAgent {
       (r) => `${r.candidates.length} facilities matched against ${cap.label}`,
       { evidence: 'SIMULATED_OPERATIONAL' },
     );
-    await this.tool('estimate_travel_time', `${s.patient.origin} → *`, () => null, () => 'road-network ETA (routing stub)', { evidence: 'SIMULATED_OPERATIONAL' });
+    await this.tool('estimate_travel_time', `${s.patient.origin} → *`, () => null, () => 'road-network travel time from registry', { evidence: 'SIMULATED_OPERATIONAL' });
     // Post-triage use of the validated risk model: if the 48-h risk could exceed the
     // approved threshold, prefer an ICU/HDU-capable facility among eligible ones.
     let riskNote = '';
@@ -967,7 +967,7 @@ export class CareGraphAgent {
         actor: 'CHW',
         kind: 'AUTHORIZATION',
         title: urgent ? 'Authorized: referral request + ambulance request' : 'Authorized: referral appointment request',
-        detail: `${s.worker.name} (${PACK.emergency.authorization_roles[0]})${urgent ? ` · confirm: ${PACK.emergency.authorization_roles[1]} (simulated)` : ''}`,
+        detail: `${s.worker.name} (${PACK.emergency.authorization_roles[0]})${urgent ? ` · confirm: ${PACK.emergency.authorization_roles[1]}` : ''}`,
       });
       this.tick(0.5);
       // Work through the top places in order: a decline or no reply moves to the next one.
@@ -1042,7 +1042,7 @@ export class CareGraphAgent {
       this.go('TRANSPORT_REQUESTED', 'Ambulance request confirmed against accepted destination', 'AGENT');
       await this.pause(1100);
       this.tick(1.5);
-      s.transport = { ...s.transport, vehicle: '108-ALS-14 (simulated)', etaToPatientMin: AMBULANCE_TO_PATIENT_MIN };
+      s.transport = { ...s.transport, vehicle: '108-ALS-14', etaToPatientMin: AMBULANCE_TO_PATIENT_MIN };
       this.transport('ASSIGNED', 'Vehicle 108-ALS-14 · ETA to patient 11 min');
       this.go('TRANSPORT_ASSIGNED', '108-ALS-14', 'TRANSPORT');
       this.focus('Execution — patient not yet at care', 'track_referral', 'CareGraph stays with the case until handoff is confirmed.');

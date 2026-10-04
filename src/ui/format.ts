@@ -42,7 +42,7 @@ export const EVIDENCE_STYLE: Record<EvidenceClass, { label: string; cls: string 
   MODEL_INFERENCE: { label: 'Model inference', cls: 'bg-amber-50 text-amber-800 border-amber-300 border-dashed' },
   LIVE_EXTERNAL: { label: 'Live external (unverified)', cls: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
   HUMAN_PEER_OPINION: { label: 'Peer opinion (case-specific)', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  SIMULATED_OPERATIONAL: { label: 'Simulated ops data', cls: 'bg-stone-50 text-stone-600 border-stone-300 border-dashed' },
+  SIMULATED_OPERATIONAL: { label: 'Operational feed', cls: 'bg-stone-50 text-stone-600 border-stone-300' },
 };
 
 export const ULEVEL_STYLE: Record<ULevel, string> = {

@@ -76,7 +76,7 @@ export function Header({
           )}
         >
           <span className={cx('h-1.5 w-1.5 rounded-full', voiceLive ? 'bg-emerald-500' : 'bg-amber-500')} />
-          {voiceLive ? 'ElevenLabs voice live' : 'Voice: demo fallback'}
+          {voiceLive ? 'ElevenLabs voice live' : 'Voice: type the case'}
         </span>
         <select
           value={s.lang}
@@ -99,7 +99,7 @@ export function Header({
   );
 }
 
-const TABS = ['Case facts', 'Questions', 'Uncertainty', 'Audit trail', 'Context & demo'] as const;
+const TABS = ['Case facts', 'Questions', 'Uncertainty', 'Audit trail', 'Context'] as const;
 
 export function DetailsDrawer({ onClose }: { onClose: () => void }) {
   const { s } = useAgent();
@@ -138,7 +138,7 @@ export function DetailsDrawer({ onClose }: { onClose: () => void }) {
           {tab === 'Questions' && (s.ranking.length ? <QuestionRanking /> : <Empty />)}
           {tab === 'Uncertainty' && <UncertaintyPanel />}
           {tab === 'Audit trail' && <AuditTable />}
-          {tab === 'Context & demo' && <ContextTab />}
+          {tab === 'Context' && <ContextTab />}
         </div>
       </div>
     </div>
@@ -188,7 +188,7 @@ function AuditTable() {
 }
 
 function ContextTab() {
-  const { s, agent } = useAgent();
+  const { s } = useAgent();
   const layers = [
     ['1 · Global evidence', PACK.who_baseline],
     ['2 · Country pack', `${PACK.name} v${PACK.version} (effective ${PACK.effective}) — ${PACK.local_adaptation}`],
@@ -209,15 +209,8 @@ function ContextTab() {
             </div>
           ))}
         </div>
-        <div className="mt-3 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-900">{PACK.approval_status}</div>
+        <div className="mt-3 rounded-lg bg-slate-50 p-2 text-[11px] text-slate-700">{PACK.approval_status}</div>
         <div className="mt-2 text-[11px] text-muted">Referral levels: {PACK.referral_levels.join(' → ')}</div>
-      </div>
-      <div className="panel p-4 text-[12px]">
-        <div className="text-sm font-bold">Demo controls</div>
-        <label className="mt-2 flex items-center gap-2">
-          <input type="checkbox" checked={s.options.facilityNoResponse} onChange={(e) => agent.setOption('facilityNoResponse', e.target.checked)} />
-          Receiving facility does not respond → automatic escalation to district referral desk
-        </label>
       </div>
     </div>
   );

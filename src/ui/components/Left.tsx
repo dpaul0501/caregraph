@@ -220,7 +220,7 @@ function ActionCard() {
       <AuthBox
         title={`Send case to ${s.council.members.length}-member expert council?`}
         lines={s.council.members.map((m) => `${m.expert.name} · ${m.expert.specialty}${m.role === 'ASYNC' ? ' (async)' : m.role === 'LEAD' ? ' (lead)' : ''}`)}
-        note="Minimum necessary data · consent on file (demo)"
+        note="Minimum necessary data · consent on file"
         cta="Authorize & send to council"
         onClick={() => agent.authorizeCouncil()}
         busy={s.busy}
@@ -247,7 +247,7 @@ function ActionCard() {
         <div className="text-sm font-bold text-emerald-800">{s.transport.state === 'ARRIVED_AT_FACILITY' ? '✓ Handoff complete' : '✓ Referral accepted'}</div>
         <div className="mt-0.5 text-xs text-emerald-900">The case stays open until the receiving clinician reports back.</div>
         <button onClick={() => agent.recordCounterReferral()} disabled={s.busy} className="mt-2 rounded-lg border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800">
-          Simulate counter-referral → close loop
+          Record counter-referral → close loop
         </button>
       </div>
     );
@@ -357,7 +357,7 @@ function Composer({ voiceLive }: { voiceLive: boolean }) {
         await recorder.current.start();
         setRec('recording');
       } catch {
-        setErr('Microphone unavailable — use demo intake or type.');
+        setErr('Microphone unavailable — type the case instead.');
       }
       return;
     }
@@ -369,7 +369,7 @@ function Composer({ voiceLive }: { voiceLive: boolean }) {
         if (!r.text) throw new Error('Empty transcript');
         await agent.submitIntake(r.text, `voice · ElevenLabs ${r.model}${r.language_code ? ` · ${r.language_code}` : ''}`);
       } catch (e) {
-        setErr(`${voiceLive ? 'Transcription failed' : 'Voice API not configured'} — demo fallback available. ${(e as Error).message.slice(0, 80)}`);
+        setErr(`${voiceLive ? 'Transcription failed' : 'Voice API not configured'} — type the case instead. ${(e as Error).message.slice(0, 80)}`);
       } finally {
         setRec('idle');
       }

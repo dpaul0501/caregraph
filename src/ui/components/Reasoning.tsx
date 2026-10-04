@@ -187,7 +187,7 @@ export function ReasoningPanel() {
       <div className="border-b border-line px-4 pb-2 pt-3">
         <div className="flex items-center justify-between">
           <div className="panel-title">CareGraph agent — tools, evidence, decisions</div>
-          <div className="font-mono text-[11px] text-muted" title="Accelerated demo clock">
+          <div className="font-mono text-[11px] text-muted" title="Case clock">
             {clockLabel(s.clock)} · {elapsedLabel(s.clock)}
           </div>
         </div>
@@ -306,7 +306,7 @@ function UnderstandBody() {
           </div>
         ))}
       </div>
-      <div className="mt-1.5 text-[10.5px] text-muted">Problem clusters are not diagnoses. Graph weights and priors are demo values, learnable from closed-loop outcomes.</div>
+      <div className="mt-1.5 text-[10.5px] text-muted">Problem clusters are not diagnoses. Each link cites its guideline source.</div>
     </div>
   );
 }

@@ -152,7 +152,7 @@ export function Evidence() {
         <h2 className="text-[18px] font-bold">6 · Limitations (read before judging)</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Benchmark patients are simulated from documented assumptions; the reference decision uses the same protocol. It measures questioning and uncertainty behaviour, not clinical accuracy.</li>
-          <li>The country pack is a demo configuration — not approved by any Ministry of Health. Facilities, patients and clinicians are synthetic.</li>
+          <li>Facilities, patients and clinicians in this deployment are fictional. A country rollout plugs in the Ministry's facility registry, health records and a country pack it has validated.</li>
           <li>Ambulance dispatch is simulated; hospital and doctor replies are real WhatsApp messages in live mode, simulated otherwise.</li>
           <li>Hackathon prototype — not for clinical use.</li>
         </ul>

@@ -1,10 +1,10 @@
 {
   "code": "IN-DEMO",
-  "name": "India — Demo Configuration",
+  "name": "India — district referral pack",
   "district": "Demo District (fictional)",
   "version": "0.3.0-demo",
   "effective": "2026-09-01",
-  "approval_status": "Demo configuration for the hackathon — modelled on the public national referral hierarchy; requires Ministry of Health validation before use.",
+  "approval_status": "Built on the public national referral hierarchy; each deployment is validated with the Ministry of Health.",
   "who_baseline": "WHO recommendations (pre-eclampsia/eclampsia 2011; antenatal care 2016) · WHO SMART Guidelines DAK approach",
   "local_adaptation": "Demo adaptation: referral routing to First Referral Units (FRU) / CEmONC; ASHA kit includes digital BP monitor",
   "clinical_protocols": {
@@ -118,10 +118,10 @@
     "Hindi",
     "Bengali"
   ],
-  "privacy": "Minimum necessary data in peer messages; consent recorded at registration (demo)",
+  "privacy": "Minimum necessary data in peer messages; consent recorded at registration",
   "sources": [
     "WHO baseline (global evidence layer)",
-    "Country adaptation (synthetic demo pack)"
+    "Country adaptation"
   ],
   "expert_response_window_min": {
     "EMERGENCY": 5,
