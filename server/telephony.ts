@@ -20,6 +20,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { CareGraphAgent, PACK } from '../src/engine/orchestrator.ts';
+import { knowledge } from '../src/engine/knowledge.ts';
 import { SCENARIOS, type CouncilChoice, type ScenarioDef } from '../src/data/scenarios.ts';
 import { LEVEL_RANK } from '../src/engine/types.ts';
 import { synthesize, transcribe } from '../supabase/functions/_shared/elevenlabs.ts';
@@ -88,6 +89,10 @@ function newSession(key: string, channel: Channel, phone: string, scenario: Scen
     requestPeerOpinion: DOCTOR && humans ? (r) => askHuman(DOCTOR, 'doctor', r.packetText + '\n\nReply 1 = AGREE + REFER · 2 = ASK ANOTHER QUESTION · 3 = MANAGE LOCALLY (add a note after the number)', r.timeoutMs, owner).then((ans) => (ans ? opinionFrom(ans) : null)) : undefined,
     notifyWorker: (text) => (phone ? notify(channel === 'sms' ? 'sms' : 'whatsapp', phone, text, owner) : undefined),
   };
+  // Prefetch while she is still speaking: the record and nearby bed status load during recording and transcription.
+  const pt = agent.getState().patient;
+  void knowledge.patient(pt.id).catch(() => undefined);
+  void knowledge.facilities(pt.origin).catch(() => undefined);
   const live: Live = { key, channel, phone, agent, startedAt: Date.now(), owner };
   sessions.set(key, live);
   if (owner) follow.set(owner, key);
@@ -532,6 +537,7 @@ const server = createServer(async (req, res) => {
       return json(res, { url: `sim:${id}`, text, audio: `/sim/recording/${id}` });
     }
     // ---- voice for the website (keys stay on the server) ----
+    if (url.pathname === '/knowledge/stats') return json(res, knowledge.stats);
     if (url.pathname === '/voice/health') return json(res, { elevenlabs: !!VOICE_ENV.ELEVENLABS_API_KEY });
     if (url.pathname === '/voice/tts' && req.method === 'POST') {
       const { text } = JSON.parse(await readBody(req)) as { text: string };

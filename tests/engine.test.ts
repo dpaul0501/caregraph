@@ -386,3 +386,33 @@ describe('evidence planning and learning', () => {
     expect(acceptanceRate(dh)).toBeLessThan(before);
   });
 });
+
+describe('knowledge retrieval and context', () => {
+  it('caches each kind for its own lifetime and shares concurrent loads', async () => {
+    const { KnowledgeCache, bundledSources } = await import('../src/engine/knowledge');
+    let t = 0;
+    let calls = 0;
+    const src = bundledSources();
+    const counting = { ...src, facilities: (o: string) => (calls++, src.facilities(o)) };
+    const c = new KnowledgeCache(counting, () => t);
+    const [a, b] = await Promise.all([c.facilities('rampur'), c.facilities('rampur')]);
+    expect(calls).toBe(1); // one request for two concurrent cases
+    expect(a.value).toBe(b.value);
+    t += 60_000;
+    expect((await c.facilities('rampur')).hit).toBe(true);
+    expect((await c.protocol('maternal_demo_v1')).hit).toBe(false);
+    t += 90_000; // bed status is stale after 2 min; protocols last a day
+    expect((await c.facilities('rampur')).hit).toBe(false);
+    expect((await c.protocol('maternal_demo_v1')).hit).toBe(true);
+  });
+
+  it('a case loads only the slice of knowledge its situation needs', async () => {
+    const a = agent('maternal');
+    await a.submitIntake(SCENARIOS.maternal.intake.en, 'test');
+    const ctx = a.getState().context;
+    expect(ctx.protocol).toBe('maternal_demo_v1');
+    expect(ctx.graph!.clusters).toBeLessThan(ctx.graph!.ofClusters);
+    expect(ctx.patient!.items).toBeGreaterThan(0);
+    expect(a.getState().audit.some((e) => e.tool === 'load_knowledge')).toBe(true);
+  });
+});

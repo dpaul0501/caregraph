@@ -8,6 +8,7 @@ import { extractCase, parseBP } from './extract';
 import { searchFacilities, type CapabilityDef, type Facility, type FacilityCandidate, type FacilitySearch } from './facilities';
 import { convokeCouncil, type Council, type Expert } from './experts';
 import { assessClusters, KG, type ClusterAssessment } from './kg';
+import { describe, KG_SIZE, knowledge, REGISTRY_SIZE, type CaseContext } from './knowledge';
 import { assessRisk, priorCalibration, type Calibration, type RiskAssessment } from './reasoner';
 import { MODELS } from './models';
 import { evaluate, factsIn } from './logic';
@@ -135,6 +136,8 @@ export interface Session {
   audit: AuditEvent[];
   intakeSource: string | null;
   options: { facilityNoResponse: boolean; acceptance: 'always' | 'realistic' | 'decline-first' };
+  /** What this case has retrieved: a bounded slice of the knowledge, not all of it. */
+  context: CaseContext;
 }
 
 const patients = patientData.patients as unknown as Patient[];
@@ -190,6 +193,7 @@ function freshSession(scenarioId: ScenarioDef['id'], lang: Lang, options: Sessio
     audit: [],
     intakeSource: null,
     options,
+    context: { protocol: null, graph: null, patient: null, facilities: null },
   };
   s.uncertainty = computeUncertainty(s);
   return s;
@@ -374,24 +378,27 @@ export class CareGraphAgent {
       this.go('CASE_CREATED', `Intake via ${via}`, 'CHW');
 
       this.focus('No structured case', 'get_patient_history', 'Authorised history may change what matters most — retrieve before asking anything.');
+      const rec = await knowledge.patient(s.patient.id);
+      const record = rec.value;
       const hist = await this.tool(
         'get_patient_history',
         s.patient.id,
         () =>
-          Object.entries(s.patient.facts).map(
+          Object.entries(record?.facts ?? {}).map(
             ([k, v]): Fact => ({
               key: k,
               value: v.value,
               status: 'OBSERVED',
-              source: s.patient.record_source,
+              source: record!.record_source,
               evidence: 'PATIENT_RECORD',
               at: k === 'hx_last_bp' || k === 'hx_last_sbp' ? -1440 : -60 * 24 * 3,
               note: v.note,
             }),
           ),
-        (r) => `${r.length} record items · ${s.patient.record_source}`,
+        (r) => `${r.length} record items · ${record?.record_source ?? 'no record'} · ${describe(rec, 'patient record API')}`,
         { evidence: 'PATIENT_RECORD' },
       );
+      s.context = { ...s.context, patient: { items: hist.length, source: record?.record_source ?? 'none' } };
       this.merge(hist);
 
       const ex = await this.tool(
@@ -449,6 +456,23 @@ export class CareGraphAgent {
       s.protocol = chosen;
       s.ranking = [];
     }
+    if (s.context.protocol === chosen.id) return;
+    // Retrieve only the knowledge this situation needs: its protocol, its slice of the graph, the country's rules.
+    const [proto, graph, country] = await Promise.all([knowledge.protocol(chosen.id), knowledge.graph(chosen.id), knowledge.country(PACK.code)]);
+    if (proto.value) s.protocol = proto.value;
+    await this.tool(
+      'load_knowledge',
+      `${chosen.id}, ${PACK.code}`,
+      () => graph.value,
+      (g) =>
+        `protocol ${chosen.id} (${describe(proto, 'protocol store')}) · graph ${g.clusters.length} of ${KG_SIZE.clusters} problems, ${Object.keys(g.findings).length} of ${KG_SIZE.findings} findings (${describe(graph, 'knowledge graph')}) · country ${country.value.code}@${country.value.version} (${describe(country, 'country pack')})`,
+      { evidence: 'VERIFIED_CLINICAL' },
+    );
+    s.context = {
+      ...s.context,
+      protocol: chosen.id,
+      graph: { clusters: graph.value.clusters.length, findings: Object.keys(graph.value.findings).length, ofClusters: KG_SIZE.clusters, ofFindings: KG_SIZE.findings },
+    };
   }
 
   answer(questionId: string, a: { bp: string } | { outcome: number } | { unknown: true }) {
@@ -814,14 +838,22 @@ export class CareGraphAgent {
     );
     this.go('FACILITY_SEARCH', `Required: ${cap.label}`, 'AGENT');
     await this.tool('required_capability', `${triage.fired[0]?.id ?? triage.level}`, () => cap, (c) => `${capId}: services [${c.services.join(', ')}] · staff [${c.staff_on_duty.join(', ') || 'appointment'}] · ${c.hours}`, { evidence: 'VERIFIED_CLINICAL' });
+    const status = await knowledge.facilities(s.patient.origin);
+    await this.tool(
+      'get_facility_status',
+      `${s.patient.origin}`,
+      () => status.value,
+      (fs) => `${fs.length} of ${REGISTRY_SIZE} registry facilities within reach · acceptance, roster, beds · ${describe(status, 'facility status feed')} · refreshed every 2 min`,
+      { evidence: 'SIMULATED_OPERATIONAL' },
+    );
+    s.context = { ...s.context, facilities: { loaded: status.value.length, ofRegistry: REGISTRY_SIZE } };
     const search = await this.tool(
       'search_facilities',
       `${capId}, ${s.worker.origin}`,
-      () => searchFacilities(FACILITIES, capId, cap, s.patient.origin),
-      (r) => `${r.candidates.length} facilities in registry within reach`,
+      () => searchFacilities(status.value, capId, cap, s.patient.origin),
+      (r) => `${r.candidates.length} facilities matched against ${cap.label}`,
       { evidence: 'SIMULATED_OPERATIONAL' },
     );
-    await this.tool('get_facility_status', `${search.candidates.length} facilities`, () => null, () => `live status feed (simulated): acceptance, roster, freshness`, { evidence: 'SIMULATED_OPERATIONAL' });
     await this.tool('estimate_travel_time', `${s.patient.origin} → *`, () => null, () => 'road-network ETA (routing stub)', { evidence: 'SIMULATED_OPERATIONAL' });
     // Post-triage use of the validated risk model: if the 48-h risk could exceed the
     // approved threshold, prefer an ICU/HDU-capable facility among eligible ones.

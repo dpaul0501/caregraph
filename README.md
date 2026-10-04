@@ -77,6 +77,7 @@ src/engine/          framework-free TypeScript — runs on-device, no network ne
   triage.ts          protocol execution + value-of-information question selection
   uncertainty.ts     7 uncertainty dimensions (no single fake confidence score)
   kg.ts              evidence graph: findings → problem clusters (risk × evidence × unresolved) → actions
+  knowledge.ts       retrieval + cache: protocol store, graph slice, country pack, patient record API, facility feed
   facilities.ts      capability/availability/acceptance/ETA matching
   experts.ts         expert council: smallest set covering required expertise in the response window
   referral.ts        referral + transport state machines (invalid transitions throw)
@@ -88,6 +89,10 @@ src/ui/              React + Tailwind judge-facing UI
 server/api.ts        local /api/voice-* (Vite middleware)
 supabase/functions/  voice-health / voice-stt / voice-tts Edge Functions (Lovable Cloud)
 ```
+
+### Knowledge retrieval and context
+
+Knowledge lives in separate systems. For each case the agent loads only what the situation needs (the chosen protocol, its slice of the knowledge graph, the country pack, the patient's record and the facilities within reach) into a bounded case context (`session.context`). Every source goes through `KnowledgeCache`, with a lifetime matched to how fast it changes: protocols, graph and country pack 24 h; patient record 10 min; facility status 2 min. Concurrent cases share one request, and the server prefetches the record and bed status while the worker is still recording. `npx tsx scripts/cache-bench.ts` simulates 300–500 ms APIs: the first case takes 1.2 s of retrieval, the next ones about 1 ms per turn. The bundled JSON sources are stand-ins; swap `knowledge.sources` for HTTP/FHIR clients in deployment. Live counters: `GET /knowledge/stats`.
 
 Safety-critical logic (red flags, thresholds, eligibility, transitions, escalation) is deterministic.
 A language model may be added for extraction/explanations behind the same `extract_case` interface; it can never override a fired rule.
